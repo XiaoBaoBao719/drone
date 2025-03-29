@@ -8,7 +8,7 @@ unsigned long previousMillis = 0;
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
-
+  
   ppm.begin(2, false);
 }
 
