@@ -1,0 +1,19 @@
+{
+    "idf.pythonInstallPath": "/usr/bin/python",
+    "idf.port": "/dev/ttyACM1",
+
+    "arduino.path" : "home/metis/Downloads/arduino-ide_nightly-20241212_Linux_64bit",
+    "arduino.useArduinoCli": true,
+    "arduino.logLevel": "info",
+    // "arduino.allowPDEFiletype": false,
+    "arduino.enableUSBDetection": true,
+    "arduino.disableTestingOpen": false,
+    "arduino.skipHeaderProvider": false,
+    "files.associations": {
+        "arduino.h": "c",
+        "filters.h": "c",
+        "array": "cpp",
+        "string": "cpp",
+        "string_view": "cpp"
+    },
+}
