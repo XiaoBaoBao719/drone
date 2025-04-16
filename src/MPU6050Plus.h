@@ -4,6 +4,7 @@
 #include <Filters.h>
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <math.h>
 
 #define M_PI (3.14159)
@@ -27,7 +28,7 @@
 
 enum IMU_OUTPUT_TYPE {
     YPR,
-    EULER,
+    EULER_ANGLE,
     QUATERNION
 };
 
@@ -93,8 +94,9 @@ struct MPU6050Plus {
     ImuPoint currMeas;
     ImuPoint lastMeas;
     float start_time;
+    float dT;       // imu sampling frequency
 
-    MPU6050Plus( MPU6050 *mpu );
+    MPU6050Plus( MPU6050 *mpu, float sampleT);
 
     void applyIMUOffsets(MPU6050 *mpu);
 
@@ -104,7 +106,9 @@ struct MPU6050Plus {
 
     void getGyroRaw(MPU6050 *mpu, float *gx_, float *gy_, float *gz_);
 
-    void getYawPitchRoll(MPU6050 *mpu, ImuPoint *point);
+    float* getRollPitchYaw(MPU6050 *mpu);
+
+    float* integrateGyro();
 
     void filterMeasurements(float data[]);
 };

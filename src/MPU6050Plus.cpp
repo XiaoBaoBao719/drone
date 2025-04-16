@@ -1,7 +1,7 @@
 #include <MPU6050Plus.h>
 #include <Arduino.h>
 
-MPU6050Plus::MPU6050Plus( MPU6050 *mpu ) {
+MPU6050Plus::MPU6050Plus( MPU6050 *mpu , float sampleT) {
     // Initialize the mpu 6050 instance
     mpu->initialize();
     // Apply offsets
@@ -22,6 +22,8 @@ MPU6050Plus::MPU6050Plus( MPU6050 *mpu ) {
 
     // Update current time
     start_time = float( micros() ) * 1e-6;
+    // Update sampling period for taking measurements
+    dT = sampleT;
 }
 
 void MPU6050Plus::getMeasurementRaw(MPU6050 *mpu, float data[] ) {
@@ -60,18 +62,32 @@ void MPU6050Plus::getMeasurement(MPU6050 *mpu, ImuPoint *point) {
     point->gz = data[5];
 }
 
-void MPU6050Plus::getYawPitchRoll(MPU6050 *mpu, ImuPoint *point) {
+float* MPU6050Plus::getRollPitchYaw(MPU6050 *mpu) {
     int16_t ax, ay, az;
     int16_t gx, gy, gz;
     
+    float* data = (float*) malloc(3 * sizeof(float));
     float roll = 0.0;
     float pitch = 0.0;
     float yaw = 0.0;
-    // Calculate pitch angle fromm accelerometer
-   
-    // Calculate the roll angle
-    roll = -atan2( point->az, sqrt( (point->ax*point->ax) + (point->ay*point->ay) ) );
-    
+    // Calculate pitch tilt angle from accel in radians
+    pitch = atan2( -currMeas.ax , ( sqrt( currMeas.ay*currMeas.ay + currMeas.az*currMeas.az )) );
+    // Calculate the roll tilt angle from accel in radians
+    roll = atan2(currMeas.ay , currMeas.az);
+    // Grab the imu measurement's time stamp
+    float ts = currMeas.curr_ts;
+    // Calcualte the pitch tilt angle via gyro integration
+
+    // Return final tilt angles
+    return data;
+}
+
+float* MPU6050Plus::integrateGyro() {
+    float* data = (float*) malloc(3 * sizeof(float));   // explicit casting of malloc
+    data[0] = lastMeas.gx + currMeas.gx * dT;
+    data[1] = lastMeas.gy + currMeas.gy * dT;
+    data[2] = lastMeas.gz + currMeas.gz * dT;
+    return data;
 }
 
 void MPU6050Plus::filterMeasurements(float data[]) {
