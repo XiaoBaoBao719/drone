@@ -9,6 +9,7 @@
 
 #define M_PI (3.14159)
 #define G (9.80665) // gravity constant - m/s^2
+
 //  * AFS_SEL | Full Scale Range | LSB Sensitivity
 //  * --------+------------------+----------------
 //  * 0       | +/- 2g           | 16384 LSB/mg
@@ -54,8 +55,14 @@ int16_t gx_raw, gy_raw, gz_raw;
 float ypr[3];
 
 /* Orientation - Quaterion form TODO*/
-typedef struct q{
+typedef struct Quaternion{
     float w = 0.0;
+    float x = 0.0;
+    float y = 0.0;
+    float z = 0.0;
+};
+
+typedef struct EulerRPY{
     float x = 0.0;
     float y = 0.0;
     float z = 0.0;
@@ -65,23 +72,25 @@ typedef struct q{
  * both raw, converted, and filtered measurements are all tracked
 */
 struct ImuPoint {
-    float ax_raw;
-    float ay_raw;
-    float az_raw;
+    float ax_raw = 0.0;
+    float ay_raw = 0.0;
+    float az_raw = 0.0;
 
-    float gx_raw;
-    float gy_raw;
-    float gz_raw;
+    float gx_raw = 0.0;
+    float gy_raw = 0.0;
+    float gz_raw = 0.0;
 
-    float ax;
-    float ay;
-    float az;
+    float ax = 0.0;
+    float ay = 0.0;
+    float az = 0.0;
 
-    float gx;
-    float gy;
-    float gz;
+    float gx = 0.0;
+    float gy = 0.0;
+    float gz = 0.0;
 
-    float curr_ts;
+    float curr_ts = 0.0;
+
+    bool isValid();
 };
 
 /*
@@ -93,22 +102,27 @@ struct MPU6050Plus {
     FilterOnePole *filters[6]; // create (RC) filters for each measurement channel
     ImuPoint currMeas;
     ImuPoint lastMeas;
+    float fused_meas[3];    // rpy (x,y,z) format
     float start_time;
-    float dT;       // imu sampling frequency
+    float dT = 0.001;       // imu sampling timestep
 
-    MPU6050Plus( MPU6050 *mpu, float sampleT);
+    MPU6050Plus(MPU6050 *mpu, float sampleT);
 
-    void applyIMUOffsets(MPU6050 *mpu);
+    void applyIMUOffsets();
 
-    void getMeasurement(MPU6050 *mpu, ImuPoint *point );
+    void getMeasurement(ImuPoint *point );
 
-    void getMeasurementRaw(MPU6050 *mpu, float data[] );
+    void getMeasurementRaw(float data[] );
 
-    void getGyroRaw(MPU6050 *mpu, float *gx_, float *gy_, float *gz_);
+    void getGyroRaw(float *gx_, float *gy_, float *gz_);
 
-    float* getRollPitchYaw(MPU6050 *mpu);
+    float* getAccelRPY();
 
     float* integrateGyro();
 
     void filterMeasurements(float data[]);
+
+    EulerRPY getRPY();
+
+    void update();
 };
