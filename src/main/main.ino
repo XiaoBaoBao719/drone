@@ -3,6 +3,9 @@
 #include "Wire.h"
 #include "Arduino.h"
 
+// custom dependencies
+#include "MPU6050Plus.h"
+
 #define LED_PIN LED_BUILTIN
 #define BUTTON_PIN D2
 
@@ -12,10 +15,11 @@ volatile int counts = 0;
 void setup() {
   Serial.begin(115200);
   Serial.println("start interrupt test");
-  pinMode(LED_PIN, OUTPUT);
-  pinMode(BUTTON_PIN, INPUT_PULLDOWN);
+  // pinMode(LED_PIN, OUTPUT);
+  // pinMode(BUTTON_PIN, INPUT_PULLDOWN);
+  // attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), doThing, RISING);
+  
 
-  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), blinkLed, RISING);
 }
 
 void loop() {
@@ -24,8 +28,6 @@ void loop() {
   Serial.print(counts);
 }
 
-void blinkLed() {
-  counts++;
-  // ledState = !ledState;
-  // digitalWrite(LED_PIN, ledState);
+void doThing() {
+  // pass
 }

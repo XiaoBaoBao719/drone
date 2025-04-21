@@ -1,5 +1,9 @@
-#include <MPU6050.h>
-// #include <Arduino.h>
+#ifndef MPU6050Plus_h
+#define MPU6050Plus_h
+
+#include "MPU6050.h"
+#include <Arduino.h>
+#include <Wire.h>
 #include <BasicLinearAlgebra.h>
 #include <Filters.h>
 
@@ -7,8 +11,17 @@
 #include <stdlib.h>
 #include <math.h>
 
+/* MPU6050 specific registers */
+#define MPU6050_ADRR                    0x68
+// #define MPU6050_SMPLRT_DIV_REGISTER     0x19
+// #define MPU6050_CONFIG_REGISTER         0x1a
+// #define MPU6050_GYRO_CONFIG             0x1b
+// #define MPU6050_ACCEL_CONFIG            0x1c
+
+
 #define M_PI (3.14159)
 #define G (9.80665) // gravity constant - m/s^2
+#define RAD_2_DEG ( M_PI / 180.0 )
 
 //  * AFS_SEL | Full Scale Range | LSB Sensitivity
 //  * --------+------------------+----------------
@@ -39,23 +52,8 @@ const float FILTER_AMPLITUDE = 100;
 const float FILTER_OFFSET = 100;
 const float FILTER_WINDOW_LENGTH = 20.0 / FILTER_SAMPLING_FREQ;
 
-/* IMU offsets */
-int16_t offset_ax = 0;
-int16_t offset_ay = 0;
-int16_t offset_az = 1788;
-int16_t offset_gx = 220;
-int16_t offset_gy = 76;
-int16_t offset_gz = -85;
-
-/* Raw IMU data */
-int16_t ax_raw, ay_raw, az_raw;
-int16_t gx_raw, gy_raw, gz_raw;
-
-/* Orientation - Yaw Pitch Roll form */
-float ypr[3];
-
 /* Orientation - Quaterion form TODO*/
-typedef struct Quaternion{
+struct quaternion{
     float w = 0.0;
     float x = 0.0;
     float y = 0.0;
@@ -97,32 +95,52 @@ struct ImuPoint {
 *  This class is a wrapper to help with configuring the mpu instance
 *  and passing measurements in a useable format
 */
-struct MPU6050Plus {
-    MPU6050 *mpu;   // pointer to mpu instance created by main
+class MPU6050Plus
+{
+private:
+    MPU6050 *mpu;              // pointer to mpu instance created by main
     FilterOnePole *filters[6]; // create (RC) filters for each measurement channel
-    ImuPoint currMeas;
-    ImuPoint lastMeas;
-    float fused_meas[3];    // rpy (x,y,z) format
+    ImuPoint *currMeas;
+    ImuPoint *lastMeas;
+    float fused_meas[3]; // rpy (x,y,z) format
     float start_time;
-    float dT = 0.001;       // imu sampling timestep
+    float dT = 0.001; // imu sampling timestep
 
-    MPU6050Plus(MPU6050 *mpu, float sampleT);
+    float accX, accY, accZ, gyroX, gyroY, gyroZ;
+    float angleAccX, angleAccY;
+    float angleX, angleY, angleZ;
 
-    void applyIMUOffsets();
+public:
+    MPU6050Plus();
 
-    void getMeasurement(ImuPoint *point );
+    void initialize(MPU6050 *mpu, float sampleT);
 
-    void getMeasurementRaw(float data[] );
-
-    void getGyroRaw(float *gx_, float *gy_, float *gz_);
-
-    float* getAccelRPY();
-
-    float* integrateGyro();
+    // void getMeasurement(ImuPoint *point);
+    // void getMeasurementRaw(float data[]);
+    void updateMeasurement();
 
     void filterMeasurements(float data[]);
 
     EulerRPY getRPY();
 
-    void update();
+    void showRawMeasurement(ImuPoint *point);
+
+    void showVals(float data[]);
+
+    /* Data Getters */
+    float getAccX() { return accX; }
+    float getAccY() { return accY; }
+    float getAccZ() { return accZ; }
+    float getGyroX() { return gyroX; }
+    float getGyroY() { return gyroY; }
+    float getGyroZ() { return gyroZ; }
+
+    float getAngleX() { return angleX; }
+    float getAngleY() { return angleY; }
+    float getAngleZ() { return angleZ; }
+    
+    float getAngleAccX() { return angleAccX; }
+    float getAngleAccY() { return angleAccY; }
 };
+
+#endif  // endif MPU6050Plus_h
