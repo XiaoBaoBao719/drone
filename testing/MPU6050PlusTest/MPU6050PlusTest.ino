@@ -38,7 +38,7 @@ void i2cSetup() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   /* Startup animation */
   pinMode(LED_BUILTIN, HIGH);
   // matrix.loadSequence(LEDMATRIX_ANIMATION_SPINNING_COIN);
@@ -69,13 +69,12 @@ void loop() {
   imu.updateMeasurement();
 
   if ((millis() - print_ts) > 10) {
-    Serial.print("x: ");
+    Serial.print("X : ");
     Serial.print(imu.getAngleX());
-    Serial.print(" y: ");
+    Serial.print("\tY : ");
     Serial.print(imu.getAngleY());
-    Serial.print(" z: ");
-    Serial.print(imu.getAngleZ());
-    Serial.println();
+    Serial.print("\tZ : ");
+    Serial.println(imu.getAngleZ());
     print_ts = millis();
   }
 

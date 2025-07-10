@@ -21,7 +21,8 @@
 
 #define M_PI (3.14159)
 #define G (9.80665) // gravity constant - m/s^2
-#define RAD_2_DEG ( M_PI / 180.0 )
+#define RAD_2_DEG ( 180.0 / M_PI )
+#define DEG_2_RAD ( M_PI / 180.0 )
 
 //  * AFS_SEL | Full Scale Range | LSB Sensitivity
 //  * --------+------------------+----------------
@@ -47,7 +48,7 @@ enum IMU_OUTPUT_TYPE {
 };
 
 /* Filtering settings */
-const float FILTER_SAMPLING_FREQ = 2;
+const float FILTER_SAMPLING_FREQ = 100;
 const float FILTER_AMPLITUDE = 100;
 const float FILTER_OFFSET = 100;
 const float FILTER_WINDOW_LENGTH = 20.0 / FILTER_SAMPLING_FREQ;
@@ -105,10 +106,13 @@ private:
     float fused_meas[3]; // rpy (x,y,z) format
     float start_time;
     float dT = 0.001; // imu sampling timestep
+    unsigned long preInterval;
 
     float accX, accY, accZ, gyroX, gyroY, gyroZ;
     float angleAccX, angleAccY;
     float angleX, angleY, angleZ;
+    float gZdT;
+    float biasGyroZ = 0.0;
 
 public:
     MPU6050Plus();
@@ -127,6 +131,8 @@ public:
 
     void showVals(float data[]);
 
+    void calcBias();
+
     /* Data Getters */
     float getAccX() { return accX; }
     float getAccY() { return accY; }
@@ -141,6 +147,10 @@ public:
     
     float getAngleAccX() { return angleAccX; }
     float getAngleAccY() { return angleAccY; }
+
+    float getAngleGyroZ() { return gZdT; }
+
+    float getBiasGyroZ() { return biasGyroZ; }
 };
 
 #endif  // endif MPU6050Plus_h

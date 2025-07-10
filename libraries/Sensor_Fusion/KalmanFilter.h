@@ -8,4 +8,5 @@
 
 // All the functions in BasicLinearAlgebra are wrapped up inside the namespace BLA, so specify that we're using it like
 // so:
-using namespace BLA;
+// using namespace BLA;
+

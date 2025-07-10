@@ -1,7 +1,8 @@
 #include <MPU6050Plus.h>
 #include <Arduino.h>
 
-const float COMPLEMENTARY_ALPHA = 0.2;
+const float COMPLEMENTARY_ALPHA = 0.05;
+const float CALIB_BIAS_CYCLES = 200;
 
 /* IMU offsets */
 int16_t offset_ax = 0;
@@ -10,6 +11,14 @@ int16_t offset_az = 1788;
 int16_t offset_gx = 220;
 int16_t offset_gy = 76;
 int16_t offset_gz = -85;
+
+void wrap(float* in) {
+    if (*in <= -180.0) {
+        *in = 180.0;
+    } else if (*in >= 180.0) {
+        *in = -180.0;
+    }
+}
 
 MPU6050Plus::MPU6050Plus() {
     ImuPoint* currMeas_;
@@ -41,7 +50,11 @@ void MPU6050Plus::initialize(MPU6050 *mpu_, float sampleT)
     // Update current time
     start_time = (float) ( micros() ) * 1e-6;
     // Update sampling period for taking measurements
-    dT = sampleT;
+    // dT = sampleT;
+    preInterval = millis();
+
+    /* Z axis bias calibration */
+    this->calcBias();
 }
 
 void MPU6050Plus::updateMeasurement() {
@@ -62,25 +75,31 @@ void MPU6050Plus::updateMeasurement() {
     gyroY = _gy_raw / SENSITIVITY_GYRO;
     gyroZ = _gz_raw / SENSITIVITY_GYRO;
 
-    /* Filter measurements */
-    this->filterMeasurements( data );
+    /* Apply (RC) Low Pass filter */
+    // this->filterMeasurements( data );
 
     /* Calculate angleAcc measurements */
-    angleAccY = atan2( -currMeas->ax , ( sqrt( currMeas->ay*currMeas->ay + currMeas->az*currMeas->az )) ); // Calculate pitch tilt angle from accel in radians
-    angleAccX = atan2(currMeas->ay , currMeas->az);  // Calculate the roll tilt angle from accel in radians
+    angleAccY = atan2( -accX , ( sqrt( accY * accY + accZ * accZ )) ) * RAD_2_DEG; // Calculate pitch tilt angle from accel in radians
+    angleAccX = atan2( accY , accZ ) * RAD_2_DEG;  // Calculate the roll tilt angle from accel in radians
     // TODO: Calcualte the yaw angle from a magnetometer reading
+
+    unsigned long Tnew = millis();
+    float dt = (Tnew - preInterval) * 1e-3;
+    preInterval = Tnew;
 
     /* Calculate angleGyro measurements */
     angleGyroX += gyroX * dT;           // 'roll'
     angleGyroY += gyroY * dT;           // 'pitch'
-    angleGyroZ += gyroZ * dT;           // 'yaw'
+    angleZ     += gyroZ * dT; // biasGyroZ;           // 'yaw'
+
+    gZdT = gyroZ * dT;
 
     /* Sensor fusion of gyro and accel angles */
     // TODO: EKF sensor fusion
     // Ccomplementary filter sensor fusion
     angleX = COMPLEMENTARY_ALPHA * angleGyroX + (1.0 - COMPLEMENTARY_ALPHA) * angleAccX;
     angleY = COMPLEMENTARY_ALPHA * angleGyroY + (1.0 - COMPLEMENTARY_ALPHA) * angleAccY;
-    angleZ = angleGyroY;
+    // angleZ = angleGyroZ - biasGyroZ;
 }
 
 void MPU6050Plus::filterMeasurements(float data[]) {
@@ -88,6 +107,23 @@ void MPU6050Plus::filterMeasurements(float data[]) {
     for (size_t index = 0; index < sizeof(data)/sizeof(data[0]); index++) {
         data[index] = filters[index]->input( data[index] );
     }
+}
+
+void MPU6050Plus::calcBias() {
+    angleZ = 0.0;
+    float start = angleZ;
+    float total = 0.0;
+    float avg;
+    for (int i = 0; i < CALIB_BIAS_CYCLES; i++) {
+        this->updateMeasurement();
+        float temp = angleZ;
+        float diff = temp - start;
+        total += diff;
+        delay(1);
+    }
+
+    avg = total / (float)CALIB_BIAS_CYCLES;
+    biasGyroZ = avg;
 }
 
 bool ImuPoint::isValid(){
