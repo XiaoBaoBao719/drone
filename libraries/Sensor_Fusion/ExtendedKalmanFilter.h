@@ -44,6 +44,18 @@ public:
     void initialize(const double initial_state[], const double  initial_covariance[]); 
     
     /**
+     * @brief Performs a single iteration of EKF state estimation and returns an EKF
+     *  estimated state and covariance for a given control input and set of measurements
+     * @param prior_state state predicted by last EKF iteration
+     * @param prior_covariance uncertainty from last EKF iteration
+     * @param input used in the dynamic model predict step
+     * @param measurement used for the observation model update step
+     * @param dt time step
+     */
+    void ekf_estimate(double prior_state[], double prior_covariance[], 
+                        double input[], double measurement[], double dt);
+
+    /**
      * @brief Takes the prior belief, the propogated state of the dynamic model, 
      * and the dynamic model's process noise and computes the predicted belief
      * @param prior The predicted state from the most recent iteration of estimation
