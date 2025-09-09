@@ -64,19 +64,21 @@ public:
     void predict(double prior[], double prior_covariance[]);
 
     /**
-     * @brief Calculates the evolution of the state over time for a gyroscope's dynamic model
+     * @brief Calculates the evolution of the state over time for a dynamic model
      * @param state measurements representing the model
-     * @param bias gyro bias 
+     * @param input the control vector input to the model
      * @param dt time step
+    //  * @return Computes the predicted state based on motion model dynamics
      */
-    void compute_dynamic_model(double state[], double model_noise[], double dt);
+    void compute_motion_model(double state[], double input[], double dt);
 
     /**
      * @brief Calculates the Jacobian of the dynamic model
-     * @param state measurements from the model
+     * @param state estimate of current model's state
+     * @param input the control vector input to the model
      * @param dt time step
      */
-    void compute_dynamic_jacobian(double state[], double dt);
+    void compute_dynamic_jacobian(double state[], double input[], double dt);
 
     /**
      * @brief Updates the covariance matrix for the dynamic model
@@ -84,11 +86,11 @@ public:
      * @param process_noise matrix that describes the noise of the dynamic model
      * @param dt time step
      */
-    void update_dynanmic_covariance(double jacobian[], double process_noise[], double dt);
+    void update_dynamic_covariance(double jacobian[], double process_noise[], double dt);
 
 
     /**
-     * @brief Updates the state estimate made by the dynamic model
+     * @brief Updates the state estimate predicted by the dynamic model
      * by incorporating measurements from the measurement model and the
      * measurement model's noise
      * @param prediction

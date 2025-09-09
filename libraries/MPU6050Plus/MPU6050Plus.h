@@ -108,7 +108,8 @@ private:
     float dT = 0.001; // imu sampling timestep
     unsigned long preInterval;
 
-    float accX, accY, accZ, gyroX, gyroY, gyroZ;
+    float accX, accY, accZ;         // meters / sec ^ 2
+    float gyroX, gyroY, gyroZ;      // degrees / sec
     float angleAccX, angleAccY;
     float angleX, angleY, angleZ;
     float gZdT;

@@ -6,11 +6,17 @@
 #include "PPMReader.h"
 #include "Arduino_LED_Matrix.h"   //Include the LED_Matrix library
 
+// custom dependencies
+#include <MPU6050Plus.h>
+
 // #define DEBUG_EULER
 #define LED_PIN (13)
 #define PPM_INTERRUPT (3)
 #define MPU_INTERRUPT (2)
 bool blink_state = false;
+
+// make an instance of the library:
+ArduinoLEDMatrix matrix;
 
 const int NUM_CHANNELS = 6;
 PPMReader ppm_(PPM_INTERRUPT, NUM_CHANNELS);
@@ -19,15 +25,8 @@ int32_t long value = 0.0;
 
 // MPU6050 mpu(0x69);
 MPU6050 mpu;
-
-/* MPU control status vars */
-bool dmpReady = false;    // if mpu dmp successful init
-bool mpuConnect = false;  // if mpu is connected
-uint8_t mpuIntStatus;     // interrupt status byte from MPU
-uint8_t devStatus;        // status after operation {0 = success, !0 = error}
-uint8_t packetSize;       // expected DMP packet size (default 42 bytes)
-uint8_t fifoCount;        // count of all bytes in the fifo buffer
-uint8_t fifoBuffer[64];   // FIFO buffer storage
+MPU6050Plus imu;
+EulerRPY rpy;
 
 /* orientation data */
 Quaternion q;         // [w, x ,y ,z]
@@ -38,12 +37,10 @@ VectorFloat gravity;  // [x, y, z] gravity vector
 float euler[3];       // [psi, theta, phi] Euler conversion
 float ypr[3];         // [yaw, pitch, roll] Angle conversion w/ gravity vector
 
-volatile bool mpuIntStatus = false;  // indicate if MPU interrupt pin has gone HIGH
-
 /* Dedicated IMU interrupt handler */
-void MPUInterrupt() {
-  mpuIntStatus = true;
-}
+// void MPUInterrupt() {
+//   mpuIntStatus = true;
+// }
 
 /* ESC & MOTOR control vars */
 
@@ -197,64 +194,64 @@ void calibrateIMU(void) {
   mpu.PrintActiveOffsets();
 }
 
-void getDMP() {
-  static uint64_t LastGoodPacketTime;
-  mpuIntStatus = false;
-  fifoCount = mpu.getFIFOCount();
-  // Serial.println(String(fifoCount) + "   " + String(packetSize));
-  if ((!fifoCount) || (fifoCount % packetSize)) {  // failed Reset, wait until next timer pass
-    digitalWrite(LED_PIN, LOW);
-    mpu.resetFIFO();
-    // Serial.println(F("Resetting FIFO..."));
-  } else {
-    while (fifoCount >= packetSize) {
-      mpu.getFIFOBytes(fifoBuffer, packetSize);
-      fifoCount -= packetSize;
-    }
-    LastGoodPacketTime = millis();
-    updateIMUData();                               // on success, update MPU angle measurements based on fifo data
-    digitalWrite(LED_PIN, !digitalRead(LED_PIN));  // blink the led
-  }
-}
+// void getDMP() {
+//   static uint64_t LastGoodPacketTime;
+//   mpuIntStatus = false;
+//   fifoCount = mpu.getFIFOCount();
+//   // Serial.println(String(fifoCount) + "   " + String(packetSize));
+//   if ((!fifoCount) || (fifoCount % packetSize)) {  // failed Reset, wait until next timer pass
+//     digitalWrite(LED_PIN, LOW);
+//     mpu.resetFIFO();
+//     // Serial.println(F("Resetting FIFO..."));
+//   } else {
+//     while (fifoCount >= packetSize) {
+//       mpu.getFIFOBytes(fifoBuffer, packetSize);
+//       fifoCount -= packetSize;
+//     }
+//     LastGoodPacketTime = millis();
+//     updateIMUData();                               // on success, update MPU angle measurements based on fifo data
+//     digitalWrite(LED_PIN, !digitalRead(LED_PIN));  // blink the led
+//   }
+// }
 
-void readMPURaw() {
-  /* Read raw accel/gyro data from the module. Other methods commented*/
-  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-  //mpu.getAcceleration(&ax, &ay, &az);
-  //mpu.getRotation(&gx, &gy, &gz);
+// void readMPURaw() {
+//   /* Read raw accel/gyro data from the module. Other methods commented*/
+//   mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+//   //mpu.getAcceleration(&ax, &ay, &az);
+//   //mpu.getRotation(&gx, &gy, &gz);
 
-  /*Print the obtained data on the defined format*/
-  #ifdef OUTPUT_READABLE_ACCELGYRO
-    Serial.print("a/g:\t");
-    Serial.print(ax); Serial.print("\t");
-    Serial.print(ay); Serial.print("\t");
-    Serial.print(az); Serial.print("\t");
-    Serial.print(gx); Serial.print("\t");
-    Serial.print(gy); Serial.print("\t");
-    Serial.println(gz);
-  #endif
+//   /*Print the obtained data on the defined format*/
+//   #ifdef OUTPUT_READABLE_ACCELGYRO
+//     Serial.print("a/g:\t");
+//     Serial.print(ax); Serial.print("\t");
+//     Serial.print(ay); Serial.print("\t");
+//     Serial.print(az); Serial.print("\t");
+//     Serial.print(gx); Serial.print("\t");
+//     Serial.print(gy); Serial.print("\t");
+//     Serial.println(gz);
+//   #endif
 
-  #ifdef OUTPUT_BINARY_ACCELGYRO
-    Serial.write((uint8_t)(ax >> 8)); Serial.write((uint8_t)(ax & 0xFF));
-    Serial.write((uint8_t)(ay >> 8)); Serial.write((uint8_t)(ay & 0xFF));
-    Serial.write((uint8_t)(az >> 8)); Serial.write((uint8_t)(az & 0xFF));
-    Serial.write((uint8_t)(gx >> 8)); Serial.write((uint8_t)(gx & 0xFF));
-    Serial.write((uint8_t)(gy >> 8)); Serial.write((uint8_t)(gy & 0xFF));
-    Serial.write((uint8_t)(gz >> 8)); Serial.write((uint8_t)(gz & 0xFF));
-  #endif
+//   #ifdef OUTPUT_BINARY_ACCELGYRO
+//     Serial.write((uint8_t)(ax >> 8)); Serial.write((uint8_t)(ax & 0xFF));
+//     Serial.write((uint8_t)(ay >> 8)); Serial.write((uint8_t)(ay & 0xFF));
+//     Serial.write((uint8_t)(az >> 8)); Serial.write((uint8_t)(az & 0xFF));
+//     Serial.write((uint8_t)(gx >> 8)); Serial.write((uint8_t)(gx & 0xFF));
+//     Serial.write((uint8_t)(gy >> 8)); Serial.write((uint8_t)(gy & 0xFF));
+//     Serial.write((uint8_t)(gz >> 8)); Serial.write((uint8_t)(gz & 0xFF));
+//   #endif
 
-  /*Blink LED to indicate activity*/
-  blinkState = !blinkState;
-  digitalWrite(LED_BUILTIN, blinkState);
-}
+//   /*Blink LED to indicate activity*/
+//   blinkState = !blinkState;
+//   digitalWrite(LED_BUILTIN, blinkState);
+// }
 
 void updateIMUData(void) {
   if (fifoBuffer) {
     // convert fifo buffer values
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    mpu.dmpGetGravity(&gravity, &q);
+    // mpu.dmpGetQuaternion(&q, fifoBuffer);
+    // mpu.dmpGetGravity(&gravity, &q);
     // mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-    mpu.dmpGetEuler(euler, &q);
+    // mpu.dmpGetEuler(euler, &q);
 #ifdef DEBUG_MODE_QUAT
     Serial.print("quat\t");
     Serial.print(q.w);
@@ -332,6 +329,7 @@ void setup() {
   m1_esc.speed(ESC_SPEED_MIN);
   m2_esc.arm();
   m2_esc.speed(ESC_SPEED_MIN);
+  
   m3_esc.arm();
   m3_esc.speed(ESC_SPEED_MIN);
   m4_esc.arm();

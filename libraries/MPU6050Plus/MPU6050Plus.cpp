@@ -64,13 +64,13 @@ void MPU6050Plus::updateMeasurement() {
     float data[6];
 
     mpu->getAcceleration(&_ax_raw,&_ay_raw,&_az_raw);
-    /* convert from analog counts to m/s^2 */
+    /* Convert: Counts -> m/s^2 */
     accX = _ax_raw * G / SENSITIVITY_ACCEL;  // x
     accY = _ay_raw * G / SENSITIVITY_ACCEL;  // y
     accZ = _az_raw * G / SENSITIVITY_ACCEL;  // z
 
     mpu->getRotation(&_gx_raw,&_gy_raw,&_gz_raw);
-    /* convert from analog counts to deg / s */
+    /* Convert: Counts -> deg/s */
     gyroX = _gx_raw / SENSITIVITY_GYRO;
     gyroY = _gy_raw / SENSITIVITY_GYRO;
     gyroZ = _gz_raw / SENSITIVITY_GYRO;
