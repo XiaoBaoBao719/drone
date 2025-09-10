@@ -9,6 +9,8 @@
 // custom dependencies
 #include <MPU6050Plus.h>
 
+/* BEGIN GLOBAL CONSTANTS */
+
 // #define DEBUG_EULER
 #define LED_PIN (13)
 #define PPM_INTERRUPT (3)
@@ -24,9 +26,12 @@ int32_t receiverValue[NUM_CHANNELS] = { 0.0 };
 int32_t long value = 0.0;
 
 // MPU6050 mpu(0x69);
-MPU6050 mpu;
-MPU6050Plus imu;
-EulerRPY rpy;
+MPU6050 mpu;          // Used for initiating a connection with the MPU drivers
+MPU6050Plus imu;      // Wrapper that converts raw IMU values into filtered angle measurements
+EulerRPY rpy;         // IMU converted values expressed in an Euler transform
+
+const float IMU_SAMPLE_FREQ_MS = 1000;    // millisecs
+const float IMU_SAMPLE_FREQ = 0.001;      // time interval between imu points (secs)
 
 /* orientation data */
 Quaternion q;         // [w, x ,y ,z]
@@ -36,11 +41,6 @@ VectorInt16 aaWorld;  // [x, y, z] world-frame accel measurements
 VectorFloat gravity;  // [x, y, z] gravity vector
 float euler[3];       // [psi, theta, phi] Euler conversion
 float ypr[3];         // [yaw, pitch, roll] Angle conversion w/ gravity vector
-
-/* Dedicated IMU interrupt handler */
-// void MPUInterrupt() {
-//   mpuIntStatus = true;
-// }
 
 /* ESC & MOTOR control vars */
 
@@ -136,6 +136,8 @@ float motor_one_speed, motor_two_speed, motor_three_speed, motor_four_speed;
 #define MOTOR_CONSTANT (5) // (7)
 bool stopMotors = false;
 
+/* END GLOBAL CONSTANTS */
+
 float pid(float err_, float prev_err_, float p_gain, float i_gain,
           float prev_i_gain, float d_gain) {
   // float pid_state[3] = { 0.0 };
@@ -181,37 +183,17 @@ void readReceiver(void) {
   // Serial.println();
 }
 
-void calibrateIMU(void) {
-  // apply arbitrary initial gyro offsets
-  mpu.setXGyroOffset(220);
-  mpu.setYGyroOffset(76);
-  mpu.setZGyroOffset(-85);
-  mpu.setZAccelOffset(1788);
+// void calibrateIMU(void) {
+//   // apply arbitrary initial gyro offsets
+//   mpu.setXGyroOffset(220);
+//   mpu.setYGyroOffset(76);
+//   mpu.setZGyroOffset(-85);
+//   mpu.setZAccelOffset(1788);
 
-  mpu.CalibrateAccel(6);
-  mpu.CalibrateGyro(6);
-  imu_offsets = mpu.GetActiveOffsets();
-  mpu.PrintActiveOffsets();
-}
-
-// void getDMP() {
-//   static uint64_t LastGoodPacketTime;
-//   mpuIntStatus = false;
-//   fifoCount = mpu.getFIFOCount();
-//   // Serial.println(String(fifoCount) + "   " + String(packetSize));
-//   if ((!fifoCount) || (fifoCount % packetSize)) {  // failed Reset, wait until next timer pass
-//     digitalWrite(LED_PIN, LOW);
-//     mpu.resetFIFO();
-//     // Serial.println(F("Resetting FIFO..."));
-//   } else {
-//     while (fifoCount >= packetSize) {
-//       mpu.getFIFOBytes(fifoBuffer, packetSize);
-//       fifoCount -= packetSize;
-//     }
-//     LastGoodPacketTime = millis();
-//     updateIMUData();                               // on success, update MPU angle measurements based on fifo data
-//     digitalWrite(LED_PIN, !digitalRead(LED_PIN));  // blink the led
-//   }
+//   mpu.CalibrateAccel(6);
+//   mpu.CalibrateGyro(6);
+//   imu_offsets = mpu.GetActiveOffsets();
+//   mpu.PrintActiveOffsets();
 // }
 
 // void readMPURaw() {
@@ -245,46 +227,46 @@ void calibrateIMU(void) {
 //   digitalWrite(LED_BUILTIN, blinkState);
 // }
 
-void updateIMUData(void) {
-  if (fifoBuffer) {
-    // convert fifo buffer values
-    // mpu.dmpGetQuaternion(&q, fifoBuffer);
-    // mpu.dmpGetGravity(&gravity, &q);
-    // mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-    // mpu.dmpGetEuler(euler, &q);
-#ifdef DEBUG_MODE_QUAT
-    Serial.print("quat\t");
-    Serial.print(q.w);
-    Serial.print("\t");
-    Serial.print(q.x);
-    Serial.print("\t");
-    Serial.print(q.y);
-    Serial.print("\t");
-    Serial.println(q.z);
-#endif
+// void updateIMUData(void) {
+//   if (fifoBuffer) {
+//     // convert fifo buffer values
+//     // mpu.dmpGetQuaternion(&q, fifoBuffer);
+//     // mpu.dmpGetGravity(&gravity, &q);
+//     // mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+//     // mpu.dmpGetEuler(euler, &q);
+// #ifdef DEBUG_MODE_QUAT
+//     Serial.print("quat\t");
+//     Serial.print(q.w);
+//     Serial.print("\t");
+//     Serial.print(q.x);
+//     Serial.print("\t");
+//     Serial.print(q.y);
+//     Serial.print("\t");
+//     Serial.println(q.z);
+// #endif
 
-#ifdef DEBUG_YAWPITCHROLL
-    Serial.print("ypr\t");
-    Serial.print(ypr[0] * 180 / M_PI);
-    Serial.print("\t");
-    Serial.print(ypr[1] * 180 / M_PI);
-    Serial.print("\t");
-    Serial.println(ypr[2] * 180 / M_PI);
-#endif
+// #ifdef DEBUG_YAWPITCHROLL
+//     Serial.print("ypr\t");
+//     Serial.print(ypr[0] * 180 / M_PI);
+//     Serial.print("\t");
+//     Serial.print(ypr[1] * 180 / M_PI);
+//     Serial.print("\t");
+//     Serial.println(ypr[2] * 180 / M_PI);
+// #endif
 
-#ifdef DEBUG_EULER
-    // display Euler angles in degrees
-    // mpu.dmpGetQuaternion(&q, fifoBuffer);
-    // mpu.dmpGetEuler(euler, &q);
-    Serial.print("euler\t");
-    Serial.print(euler[0] * 180 / M_PI);
-    Serial.print("\t");
-    Serial.print(euler[1] * 180 / M_PI);
-    Serial.print("\t");
-    Serial.println(euler[2] * 180 / M_PI);
-#endif
-  }
-}
+// #ifdef DEBUG_EULER
+//     // display Euler angles in degrees
+//     // mpu.dmpGetQuaternion(&q, fifoBuffer);
+//     // mpu.dmpGetEuler(euler, &q);
+//     Serial.print("euler\t");
+//     Serial.print(euler[0] * 180 / M_PI);
+//     Serial.print("\t");
+//     Serial.print(euler[1] * 180 / M_PI);
+//     Serial.print("\t");
+//     Serial.println(euler[2] * 180 / M_PI);
+// #endif
+//   }
+// }
 
 // ================================================================
 // ===                      i2c SETUP Items                     ===
@@ -351,8 +333,12 @@ void setup() {
     mpu.testConnection();
     delay(500);
   }
+
+  /* Create IMU data wrapper */
+  imu.initialize(&mpu, IMU_SAMPLE_FREQ);
+
   // Calibrate the IMU accel/gyro offsets
-  calibrateIMU();
+  // calibrateIMU();    // --- no need as the mpu wrapper takes care of calibration with preset values
 
   /* RC PPM Receiver Setup */
   /* Safety check: if throttle above threshold do not advance */
@@ -370,14 +356,17 @@ void setup() {
   loopTimer = micros();
 }
 
+bool mpuIntStatus = true;
+
+float angleX = 0.0;
+float angleY = 0.0;
+float angleZ = 0.0;
+
 void loop() {
   if (mpuIntStatus) {
-    #ifdef DMP_ENABLE
-    getDMP();
-    #else
 
-    #endif
-    readReceiver();
+    imu.updateMeasurement();      // read from IMU wrapper  
+    readReceiver();               // read PPM from the RC remote
   }
 
   if (receiverValue[CH_THR - 1] < 1180) {
@@ -394,10 +383,17 @@ void loop() {
   // Serial.print(String(inputZ)+"\n");
   // Serial.println("inX: " + String(inputX) + "\tinY: " + String(inputY) + "\tinZ: " + String(inputZ));
 
+  angleX = imu.getAngleX();
+  angleY = imu.getAngleY();
+  angleZ = imu.getAngleZ();
+
   // Caculate error
-  errorRateX = inputX - (euler[2] * 180/M_PI);
-  errorRateZ = inputZ - (euler[0] * 180/M_PI);
-  errorRateY = inputY - (euler[1] * 180/M_PI);
+  // errorRateX = inputX - (euler[2] * 180/M_PI);      // this converts from euler to degrees
+  // errorRateZ = inputZ - (euler[0] * 180/M_PI);
+  // errorRateY = inputY - (euler[1] * 180/M_PI);
+  errorRateX = inputX - angleX;
+  errorRateY = inputY - angleY;
+  errorRateZ = inputZ - angleZ;
 
   // Serial.println("ErrX: " + String(errorRateX) + "\tErrY: " + String(errorRateY) + "\tErrZ: " + String(errorRateZ));
 

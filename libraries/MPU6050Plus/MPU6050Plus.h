@@ -142,9 +142,9 @@ public:
     float getGyroY() { return gyroY; }
     float getGyroZ() { return gyroZ; }
 
-    float getAngleX() { return angleX; }
-    float getAngleY() { return angleY; }
-    float getAngleZ() { return angleZ; }
+    float getAngleX() { return angleX; }        // angle X in degs
+    float getAngleY() { return angleY; }        // angle y in degs
+    float getAngleZ() { return angleZ; }        // angle z in degs
     
     float getAngleAccX() { return angleAccX; }
     float getAngleAccY() { return angleAccY; }
