@@ -7,11 +7,15 @@
 #ifndef ESC_Library
 #define ESC_Library
 
-#if (ARDUINO >= 100)
-	#include "Arduino.h"
-#else
-	#include "WProgram.h"
-#endif
+// #if (ARDUINO >= 100)
+// 	#include "Arduino.h"
+// #else
+// 	#include "WProgram.h"
+// #endif
+
+#include "Arduino.h"
+
+// #include "WProgram.h"
 
 #include <Servo.h>				// Including the Servo library
 

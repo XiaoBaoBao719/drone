@@ -3,7 +3,8 @@
 #include "I2Cdev.h"
 #include "MPU6050.h"
 // #include "MPU6050_6Axis_MotionApps20.h"
-#include "PPMReader.h"
+// #include "PPMReader.h"
+#include "ppm.h"
 #include "Arduino_LED_Matrix.h"   //Include the LED_Matrix library
 
 // custom dependencies
@@ -21,7 +22,7 @@ bool blink_state = false;
 ArduinoLEDMatrix matrix;
 
 const int NUM_CHANNELS = 6;
-PPMReader ppm_(PPM_INTERRUPT, NUM_CHANNELS);
+// PPMReader ppm_(PPM_INTERRUPT, NUM_CHANNELS);
 int32_t receiverValue[NUM_CHANNELS] = { 0.0 };
 int32_t long value = 0.0;
 
@@ -131,7 +132,7 @@ float DGainZ = 0.0;
 
 // motor input values
 float motor_one_speed, motor_two_speed, motor_three_speed, motor_four_speed;
-#define MIN_THROTTLE (1180)
+#define MIN_THROTTLE (1050)
 #define MAX_THROTTLE (2000)
 #define MOTOR_CONSTANT (5) // (7)
 bool stopMotors = false;
@@ -175,11 +176,29 @@ void resetPID(void) {
 
 void readReceiver(void) {
   /* read latest valid values from all channels */
-  for (int channel = 1; channel <= NUM_CHANNELS; channel++) {
-    value = ppm_.latestValidChannelValue(channel, 0);
-    receiverValue[channel - 1] = value;
-    // Serial.print(String(value) + " ");
-  }
+
+  receiverValue[0] = ppm.read_channel(CH_YAW);
+  receiverValue[1] = ppm.read_channel(CH_PITCH);
+  receiverValue[2] = ppm.read_channel(CH_THR);
+  receiverValue[3] = ppm.read_channel(CH_ROLL);
+  receiverValue[4] = ppm.read_channel(CH_L_KNOB);
+  receiverValue[5] = ppm.read_channel(CH_R_KNOB);
+
+  // Print the values for the Arduino Serial Plotter
+  Serial.print("Throttle:");        Serial.print(receiverValue[2]);       Serial.print(" ");
+  Serial.print("Roll:");            Serial.print(receiverValue[3]);           Serial.print(" ");
+  Serial.print("Pitch:");           Serial.print(receiverValue[1]);          Serial.print(" ");
+  Serial.print("Yaw:");             Serial.print(receiverValue[0]);            Serial.print(" ");
+  Serial.print("Switch_3way_1:");   Serial.print(receiverValue[4]);   Serial.print(" ");
+  Serial.print("Switch_3way_2:");   Serial.print(receiverValue[5]);   Serial.print(" ");
+  Serial.println();
+
+  /* deprecated - used in #include PPMReader.h */
+  // for (int channel = 1; channel <= NUM_CHANNELS; channel++) {
+  //   value = ppm_.latestValidChannelValue(channel, 0);
+  //   receiverValue[channel - 1] = value;
+  //   // Serial.print(String(value) + " ");
+  // }
   // Serial.println();
 }
 
@@ -344,14 +363,23 @@ void setup() {
   /* Create IMU data wrapper */
   imu.initialize(&mpu, IMU_SAMPLE_FREQ);
 
+  Serial.println("IMU initialized");
+
   // Calibrate the IMU accel/gyro offsets
   // calibrateIMU();    // --- no need as the mpu wrapper takes care of calibration with preset values
 
   /* RC PPM Receiver Setup */
+  ppm.begin(PPM_INTERRUPT, false);
+
   /* Safety check: if throttle above threshold do not advance */
+
   readReceiver();
-  uint32_t init_throttle = receiverValue[CH_THR - 1];
+  
+  uint32_t init_throttle = 1100;
+
   while (init_throttle >= 1100) {
+    Serial.println(init_throttle);
+    init_throttle = receiverValue[CH_THR - 1];
     readReceiver();
     delay(100);
   }
@@ -369,6 +397,8 @@ float angleX = 0.0;
 float angleY = 0.0;
 float angleZ = 0.0;
 
+#define MIN_
+
 void loop() {
   // Serial.println("looping...");
   // if (mpuIntStatus) {
@@ -379,7 +409,7 @@ void loop() {
   imu.updateMeasurement();      // read from IMU wrapper  
   readReceiver();               // read PPM from the RC remote
 
-  if (receiverValue[CH_THR - 1] < 1180) {
+  if (receiverValue[CH_THR - 1] < MIN_THROTTLE) {
     return;
   }
   input_throttle = 0.15 * (receiverValue[CH_THR - 1]);
@@ -437,15 +467,15 @@ void loop() {
   motor_three_speed = MOTOR_CONSTANT*(input_throttle + pid_out_x + pid_out_y - pid_out_z);
   motor_four_speed = MOTOR_CONSTANT*(input_throttle + pid_out_x - pid_out_y + pid_out_z);
 
-  Serial.print("m1= ");
-  Serial.print(String(motor_one_speed));
-  Serial.print("\tm2= ");
-  Serial.print(String(motor_two_speed));
-  Serial.print("\tm3= ");
-  Serial.print(String(motor_three_speed));
-  Serial.print("\tm4= ");
-  Serial.print(String(motor_four_speed));
-  Serial.println();
+  // Serial.print("m1= ");
+  // Serial.print(String(motor_one_speed));
+  // Serial.print("\tm2= ");
+  // Serial.print(String(motor_two_speed));
+  // Serial.print("\tm3= ");
+  // Serial.print(String(motor_three_speed));
+  // Serial.print("\tm4= ");
+  // Serial.print(String(motor_four_speed));
+  // Serial.println();
 
   // /* limit motor speed from max */
   if (motor_one_speed >= MAX_THROTTLE) {
@@ -474,18 +504,18 @@ void loop() {
   // Serial.print("Throttle= ");
   // Serial.println(String(receiverValue[CH_THR - 1]));
 
-  // if (receiverValue[CH_THR - 1] < 1280) {
-  //   m1_esc.speed(ESC_STOP);
-  //   m2_esc.speed(ESC_STOP);
-  //   m3_esc.speed(ESC_STOP);
-  //   m4_esc.speed(ESC_STOP);
-  // } else {
-  //   // /* Output motor speeds to ESCS */
-  // m1_esc.speed(motor_one_speed);
-  // m2_esc.speed(motor_two_speed);
-  // m3_esc.speed(motor_three_speed);
-  // m4_esc.speed(motor_four_speed);
-  // }
+  if (receiverValue[CH_THR - 1] < 1280) {
+    m1_esc.speed(ESC_STOP);
+    m2_esc.speed(ESC_STOP);
+    m3_esc.speed(ESC_STOP);
+    m4_esc.speed(ESC_STOP);
+  } else {
+    // /* Output motor speeds to ESCS */
+  m1_esc.speed(motor_one_speed);
+  m2_esc.speed(motor_two_speed);
+  m3_esc.speed(motor_three_speed);
+  m4_esc.speed(motor_four_speed);
+  }
 
   // Serial.print(String(motor_one_speed));
   // Serial.print("\t");

@@ -9,13 +9,11 @@
 
 #include <Arduino.h>
 #include "ppm.h"
-#include "pcint.h"
-#include "avr/interrupt.h"
-
-#define USE_PCINT
+// #include "pcint.h"
+// #include "avr/interrupt.h"
 
 // our ISR for detecting pin change on PPM pin
-ISR(__vector_ppm_interrupt);
+//ISR(__vector_ppm_interrupt);
 
 PPM ppm;
 
@@ -27,11 +25,8 @@ PPM::PPM()
 void PPM::begin(int pin, bool invert)
 {
   pinMode(pin, INPUT_PULLUP);
-#ifdef USE_PCINT
-  PCattachInterrupt(pin, __vector_ppm_interrupt, CHANGE);
-#else
+
   attachInterrupt(digitalPinToInterrupt(pin), __vector_ppm_interrupt, CHANGE);
-#endif
   count_ = 0;
   pin_ = pin;
   invert_ = invert;
@@ -40,11 +35,7 @@ void PPM::begin(int pin, bool invert)
 void PPM::stop()
 {
   if(pin_) {
-#ifdef USE_PCINT
-    PCdetachInterrupt(pin_);
-#else
     detachInterrupt(digitalPinToInterrupt(pin_));
-#endif
   }
 }
 
