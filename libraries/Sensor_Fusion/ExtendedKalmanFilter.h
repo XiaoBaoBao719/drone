@@ -68,7 +68,7 @@ public:
      * @param state measurements representing the model
      * @param input the control vector input to the model
      * @param dt time step
-    //  * @return Computes the predicted state based on motion model dynamics
+     * Computes the predicted state based on motion model dynamics
      */
     void compute_motion_model(double state[], double input[], double dt);
 

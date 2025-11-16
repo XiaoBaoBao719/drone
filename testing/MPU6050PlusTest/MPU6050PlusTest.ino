@@ -57,7 +57,7 @@ void setup() {
   while (mpu.testConnection() == false) {
     Serial.println("MPU connection failed! Retrying...");
     mpu.testConnection();
-    delay(500);
+    delay(1000);
   }
 
   /* Create MPU6050 Plus */

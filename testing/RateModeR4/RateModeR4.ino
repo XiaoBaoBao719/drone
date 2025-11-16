@@ -307,17 +307,24 @@ void setup() {
 
   /* Motor setup */
   Serial.println(F("Arming ESCS..."));
+  delay(2000);
   m1_esc.arm();
   m1_esc.speed(ESC_SPEED_MIN);
+  Serial.println("ESC 1 armed.");
+  delay(1000);
   m2_esc.arm();
   m2_esc.speed(ESC_SPEED_MIN);
-  
+  Serial.println("ESC 2 armed.");
+  delay(1000);
   m3_esc.arm();
   m3_esc.speed(ESC_SPEED_MIN);
+  Serial.println("ESC 3 armed.");
+  delay(1000);
   m4_esc.arm();
   m4_esc.speed(ESC_SPEED_MIN);
+  Serial.println("ESC 4 armed.");
 
-  delay(10000);
+  delay(5000);
 
   /* I2C devices setup section */
   Serial.println(F("Initialize I2C devices..."));
@@ -342,13 +349,13 @@ void setup() {
 
   /* RC PPM Receiver Setup */
   /* Safety check: if throttle above threshold do not advance */
-  // readReceiver();
-  // uint32_t init_throttle = receiverValue[CH_THR - 1];
-  // while (init_throttle >= 1100) {
-  //   readReceiver();
-  //   delay(100);
-  // }
-  // Serial.println(F("RC reciever ready!"));
+  readReceiver();
+  uint32_t init_throttle = receiverValue[CH_THR - 1];
+  while (init_throttle >= 1100) {
+    readReceiver();
+    delay(100);
+  }
+  Serial.println(F("RC reciever ready!"));
 
   // Start the RTC
 
@@ -363,11 +370,14 @@ float angleY = 0.0;
 float angleZ = 0.0;
 
 void loop() {
-  if (mpuIntStatus) {
+  // Serial.println("looping...");
+  // if (mpuIntStatus) {
+  //   imu.updateMeasurement();      // read from IMU wrapper  
+  //   readReceiver();               // read PPM from the RC remote
+  // }
 
-    imu.updateMeasurement();      // read from IMU wrapper  
-    readReceiver();               // read PPM from the RC remote
-  }
+  imu.updateMeasurement();      // read from IMU wrapper  
+  readReceiver();               // read PPM from the RC remote
 
   if (receiverValue[CH_THR - 1] < 1180) {
     return;
@@ -381,7 +391,7 @@ void loop() {
   // Serial.print(String(inputX)+"\n");
   // Serial.print(String(inputY)+"\n");
   // Serial.print(String(inputZ)+"\n");
-  // Serial.println("inX: " + String(inputX) + "\tinY: " + String(inputY) + "\tinZ: " + String(inputZ));
+  Serial.println("inX: " + String(inputX) + "\tinY: " + String(inputY) + "\tinZ: " + String(inputZ));
 
   angleX = imu.getAngleX();
   angleY = imu.getAngleY();
@@ -459,21 +469,23 @@ void loop() {
     motor_four_speed = MIN_THROTTLE;
   }
 
-  Serial.print("Throottle= ");
-  Serial.println(String(receiverValue[CH_THR - 1]));
+/* Send the motor speed commands to individual ESCS */
 
-  if (receiverValue[CH_THR - 1] < 1280) {
-    m1_esc.speed(ESC_STOP);
-    m2_esc.speed(ESC_STOP);
-    m3_esc.speed(ESC_STOP);
-    m4_esc.speed(ESC_STOP);
-  } else {
-    // /* Output motor speeds to ESCS */
-  m1_esc.speed(motor_one_speed);
-  m2_esc.speed(motor_two_speed);
-  m3_esc.speed(motor_three_speed);
-  m4_esc.speed(motor_four_speed);
-  }
+  // Serial.print("Throttle= ");
+  // Serial.println(String(receiverValue[CH_THR - 1]));
+
+  // if (receiverValue[CH_THR - 1] < 1280) {
+  //   m1_esc.speed(ESC_STOP);
+  //   m2_esc.speed(ESC_STOP);
+  //   m3_esc.speed(ESC_STOP);
+  //   m4_esc.speed(ESC_STOP);
+  // } else {
+  //   // /* Output motor speeds to ESCS */
+  // m1_esc.speed(motor_one_speed);
+  // m2_esc.speed(motor_two_speed);
+  // m3_esc.speed(motor_three_speed);
+  // m4_esc.speed(motor_four_speed);
+  // }
 
   // Serial.print(String(motor_one_speed));
   // Serial.print("\t");
@@ -486,7 +498,7 @@ void loop() {
 
   
 
-  // wait for control loop to finish
+  /* Wait for control loop to finish. */
   while (micros() - loopTimer < LOOP_TIME_MS) {
     loopTimer = micros();
   }
