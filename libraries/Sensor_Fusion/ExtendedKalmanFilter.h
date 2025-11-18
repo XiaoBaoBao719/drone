@@ -64,21 +64,21 @@ public:
     void predict(double prior[], double prior_covariance[]);
 
     /**
-     * @brief Calculates the evolution of the state over time for a dynamic model
+     * @brief Calculates a state estimate based on the motion model
      * @param state measurements representing the model
      * @param input the control vector input to the model
      * @param dt time step
-     * Computes the predicted state based on motion model dynamics
+     * Computes the predicted state based on motion model's dynamics
      */
-    void compute_motion_model(double state[], double input[], double dt);
+    void pred_state(double state[], double input[], double dt);
 
     /**
-     * @brief Calculates the Jacobian of the dynamic model
+     * @brief Calculates the Jacobian of the motion model
      * @param state estimate of current model's state
      * @param input the control vector input to the model
      * @param dt time step
      */
-    void compute_dynamic_jacobian(double state[], double input[], double dt);
+    void jacob_F(double state[], double input[], double dt);
 
     /**
      * @brief Updates the covariance matrix for the dynamic model
@@ -86,7 +86,7 @@ public:
      * @param process_noise matrix that describes the noise of the dynamic model
      * @param dt time step
      */
-    void update_dynamic_covariance(double jacobian[], double process_noise[], double dt);
+    void pred_state_cov(double F[], double process_noise[], double dt);
 
 
     /**
@@ -99,24 +99,53 @@ public:
      */
     void update(double prediction[], double measurement[], double measurement_noise[]);
 
-    void compute_measurement_model(double measurement[], double state[]);
+    // void compute_measurement_model(double measurement[], double state[]);
 
-    void compute_innovation(double measurement[], double predicted_measurement[]);
+    /**
+     * @brief Calculates the measurement innovation (residual) which reflects
+     * the deviation between the measurement and the predicted state
+     * @param measurement the reading from a sensor
+     * @param predicted_measurement estimated reading for sensor based on motion model
+     */
+    void innovation(double measurement[], double predicted_measurement[]);
 
-    void compute_measurement_jacobian(double measurement[], double dt);
+    /**
+     * @brief Calculates the covariance (uncertainty) in the innovation
+     * @param jacobian H_observation jacobian
+     * @param predicted_covariance estimated covariance from the predict step
+     * @param measurement_noise R estimated covariance of the sensor
+     */
+    void innovation_cov(double H[], double predicted_covariance[], double measurement_noise[]);
 
-    void compute_innovation_jacobian(double innovation[], double dt);
+    /**
+     * @brief Calculates the jacobian of the Observation matrix
+     */
+    void jacobian_H(double measurement[], double dt);
 
-    void compute_kalman_gain(double prediction_covariance[], double measurement_jacobian[], 
-                                double innovation_covariance[]);
+    // void compute_innovation_jacobian(double innovation[], double dt);
 
-    void update_state(double predicted_state[], double kalman_gain, double innovation, 
+    /**
+     * @brief Computes the Kalman gain balancing factor that optimally minimizes
+     * the posteriori error covariance
+     */
+    void kalman_gain(double prediction_covariance[], double H[], 
+                                double S[]);
+
+    /**
+     * @brief Updates the mean state estimate
+     * @param K Kalman gain
+     * @param y Innovation (residual)
+     */
+    void update_state(double predicted_state[], double K, double y, 
                                 double measurement_covariance[]);
 
+    /**
+     * @brief Updates the mean covariance of the state estimate
+     * @param K Kalman gain
+     */
     void update_state_covariance(double measurement_covariance[], double prior_state_covariance[],
-                                    double kalman_gain);
+                                    double K);
 
-    
 
 private:
 
