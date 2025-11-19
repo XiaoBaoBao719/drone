@@ -1,5 +1,5 @@
-#ifndef EXTENDED_KALMAN_FILTER_H
-#define EXTENDED_KALMAN_FILTER_H
+#ifndef DRONE_EKF_H
+#define DRONE_EKF_H
 
 /* standard libraries */
 #include <stdlib.h>
@@ -13,17 +13,19 @@
 // so:
 // using namespace BLA;
 
-typedef BLA::Matrix<3,3> Matrix3;
-typedef BLA::Matrix<7,7> Matrix7;
-typedef BLA::Matrix<3,7> Matrix3x7;
-typedef BLA::Matrix<3>   Vector3;
-typedef BLA::Matrix<4>   Vector4;
-typedef BLA::Matrix<7>   Vector7;
-typedef BLA::Matrix<4>   Quaternion; 
-
+typedef BLA::Matrix<3, 3>   Matrix3;
+typedef BLA::Matrix<7, 7>   Matrix7;
+typedef BLA::Matrix<3, 7>   Matrix3x7;
+typedef BLA::Matrix<12, 12> Matrix12;
+typedef BLA::Matrix<3>      Vector3;
+typedef BLA::Matrix<4>      Vector4;
+typedef BLA::Matrix<7>      Vector7;
+typedef BLA::Matrix<9>      Vector9;
+typedef BLA::Matrix<12>     Vector12;
+typedef BLA::Matrix<4>      Quaternion;
 // This class makes use of quaternions, NOT Euler angles for state
 
-class EKF
+class DroneEKF
 {
 public:
     /**
@@ -149,11 +151,13 @@ public:
 
 private:
 
-    Vector7 state;
+    Vector12 state;
     Matrix7 covariance;
+
+    Vector9 measurements;
     Matrix7 process_noise;
     Matrix3 measurement_noise;
 
 };
 
-#endif  // EXTENDED_KALMAN_FILTER_H
+#endif  // DRONE_EKF_H
