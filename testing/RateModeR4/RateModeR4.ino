@@ -26,10 +26,10 @@ const int NUM_CHANNELS = 6;
 int32_t receiverValue[NUM_CHANNELS] = { 0.0 };
 int32_t long value = 0.0;
 
-// MPU6050 mpu(0x69);
-MPU6050 mpu;          // Used for initiating a connection with the MPU drivers
-MPU6050Plus imu;      // Wrapper that converts raw IMU values into filtered angle measurements
-EulerRPY rpy;         // IMU converted values expressed in an Euler transform
+MPU6050 mpu(0x68, &Wire1); // Set i2c addr to 0x68 (default) and use Qwiic connector (Wire1)
+// MPU6050 mpu;          // Used for initiating a connection with the MPU drivers
+MPU6050Plus imu; // Wrapper that converts raw IMU values into filtered angle measurements
+EulerRPY rpy;    // IMU converted values expressed in an Euler transform
 
 const float IMU_SAMPLE_FREQ_MS = 1000;    // millisecs
 const float IMU_SAMPLE_FREQ = 0.001;      // time interval between imu points (secs)
@@ -293,8 +293,8 @@ void readReceiver(void) {
 void i2cSetup() {
   // join I2C bus (I2Cdev library doesn't do this automatically)
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-  Wire.begin();
-  Wire.setClock(400000);
+  Wire1.begin();
+  Wire1.setClock(400000);
   // TWBR = 24;  // 400kHz I2C clock (200kHz if CPU is 8MHz)
 #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
   Fastwire::setup(400, true);
@@ -425,7 +425,7 @@ void loop() {
 
   angleX = imu.getAngleX();
   angleY = imu.getAngleY();
-  angleZ = imu.getAngleZ();
+  angleZ = imu.getAngleZ(); 
 
   // Caculate error
   // errorRateX = inputX - (euler[2] * 180/M_PI);      // this converts from euler to degrees
