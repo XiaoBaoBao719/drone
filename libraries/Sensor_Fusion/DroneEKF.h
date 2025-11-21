@@ -13,8 +13,8 @@
 // so:
 // using namespace BLA;
 
-typedef BLA::Matrix<3, 3>   Matrix3;
-typedef BLA::Matrix<7, 7>   Matrix7;
+typedef BLA::Matrix<3, 3>   Matrix3x3;
+typedef BLA::Matrix<7, 7>   Matrix7x7;
 typedef BLA::Matrix<3, 7>   Matrix3x7;
 typedef BLA::Matrix<12, 12> Matrix12;
 typedef BLA::Matrix<3>      Vector3;
@@ -31,12 +31,12 @@ public:
     /**
      * @brief Constructor for the extended kalman filter
      */
-    EKF(float accel_data[]);
+    DroneEKF(float accel_data[]);
 
     /**
      * @brief Destructor
      */
-    ~EKF() = default;
+    ~DroneEKF() = default;
 
     /**
      * @brief Initializes the EKF with an initial state and uncertainty

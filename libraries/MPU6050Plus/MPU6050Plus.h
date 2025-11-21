@@ -113,7 +113,7 @@ private:
     float angleAccX, angleAccY;
     float angleX, angleY, angleZ;
     float gZdT;
-    float biasGyroZ = 0.0;
+    float biasGyroX, biasGyroY, biasGyroZ = 0.0;
 
 public:
     MPU6050Plus();
@@ -151,6 +151,8 @@ public:
 
     float getAngleGyroZ() { return gZdT; }
 
+    float getBiasGyroX() { return biasGyroX; }
+    float getBiasGyroY() { return biasGyroY; }
     float getBiasGyroZ() { return biasGyroZ; }
 };
 

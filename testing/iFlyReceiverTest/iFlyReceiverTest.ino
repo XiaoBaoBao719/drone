@@ -191,9 +191,9 @@ in a format compatible with Arduino IDE Serial Plotter
 
 // PPM channel layout (update for your situation)
 #define THROTTLE        3
-#define ROLL            4
+#define ROLL            1
 #define PITCH           2
-#define YAW             1
+#define YAW             4
 #define SWITCH3WAY_1    5
 #define BUTTON          6
 #define SWITCH3WAY_2    7     // (NOT USED) trim-pot for left/right motor mix  (face trim)

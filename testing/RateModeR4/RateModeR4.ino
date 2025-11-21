@@ -5,7 +5,7 @@
 // #include "MPU6050_6Axis_MotionApps20.h"
 // #include "PPMReader.h"
 #include "ppm.h"
-#include "Arduino_LED_Matrix.h"   //Include the LED_Matrix library
+// #include "Arduino_LED_Matrix.h"   //Include the LED_Matrix library
 
 // custom dependencies
 #include <MPU6050Plus.h>
@@ -19,7 +19,7 @@
 bool blink_state = false;
 
 // make an instance of the library:
-ArduinoLEDMatrix matrix;
+// ArduinoLEDMatrix matrix;
 
 const int NUM_CHANNELS = 6;
 // PPMReader ppm_(PPM_INTERRUPT, NUM_CHANNELS);
@@ -51,7 +51,7 @@ float ypr[3];         // [yaw, pitch, roll] Angle conversion w/ gravity vector
 #define MOTOR_4_PWM (10)
 
 #define ESC_SPEED_MIN (1000)
-#define ESC_SPEED_MAX (1200)
+#define ESC_SPEED_MAX (1800)
 #define ESC_STOP (500)
 #define MIN_ARM_TIME (500)
 
@@ -63,8 +63,8 @@ float ypr[3];         // [yaw, pitch, roll] Angle conversion w/ gravity vector
  *  Ch 5 -  L knob
  *  Ch 6 -  R knob
  */
-#define CH_YAW (1)
-#define CH_ROLL (4)
+#define CH_YAW (4)
+#define CH_ROLL (1)
 #define CH_THR (3)
 #define CH_PITCH (2)
 #define CH_L_KNOB (5)
@@ -177,21 +177,21 @@ void resetPID(void) {
 void readReceiver(void) {
   /* read latest valid values from all channels */
 
-  receiverValue[0] = ppm.read_channel(CH_YAW);
-  receiverValue[1] = ppm.read_channel(CH_PITCH);
-  receiverValue[2] = ppm.read_channel(CH_THR);
-  receiverValue[3] = ppm.read_channel(CH_ROLL);
-  receiverValue[4] = ppm.read_channel(CH_L_KNOB);
-  receiverValue[5] = ppm.read_channel(CH_R_KNOB);
+  receiverValue[CH_YAW - 1] = ppm.read_channel(CH_YAW);
+  receiverValue[CH_PITCH - 1] = ppm.read_channel(CH_PITCH);
+  receiverValue[CH_THR - 1] = ppm.read_channel(CH_THR);
+  receiverValue[CH_ROLL - 1] = ppm.read_channel(CH_ROLL);
+  receiverValue[CH_L_KNOB - 1] = ppm.read_channel(CH_L_KNOB);
+  receiverValue[CH_R_KNOB - 1] = ppm.read_channel(CH_R_KNOB);
 
   // Print the values for the Arduino Serial Plotter
-  Serial.print("Throttle:");        Serial.print(receiverValue[2]);       Serial.print(" ");
-  Serial.print("Roll:");            Serial.print(receiverValue[3]);           Serial.print(" ");
-  Serial.print("Pitch:");           Serial.print(receiverValue[1]);          Serial.print(" ");
-  Serial.print("Yaw:");             Serial.print(receiverValue[0]);            Serial.print(" ");
-  Serial.print("Switch_3way_1:");   Serial.print(receiverValue[4]);   Serial.print(" ");
-  Serial.print("Switch_3way_2:");   Serial.print(receiverValue[5]);   Serial.print(" ");
-  Serial.println();
+  // Serial.print("Raw_Throttle:");        Serial.print(receiverValue[2]);       Serial.print(" ");
+  // Serial.print("Raw_Roll:");            Serial.print(receiverValue[3]);           Serial.print(" ");
+  // Serial.print("Raw_Pitch:");           Serial.print(receiverValue[1]);          Serial.print(" ");
+  // Serial.print("Raw_Yaw:");             Serial.print(receiverValue[0]);            Serial.print(" ");
+  // Serial.print("Switch_3way_1:");   Serial.print(receiverValue[4]);   Serial.print(" ");
+  // Serial.print("Switch_3way_2:");   Serial.print(receiverValue[5]);   Serial.print(" ");
+  // Serial.println();
 
   /* deprecated - used in #include PPMReader.h */
   // for (int channel = 1; channel <= NUM_CHANNELS; channel++) {
@@ -320,25 +320,25 @@ void setup() {
   Serial.begin(115200);
   /* Startup animation */
   pinMode(LED_BUILTIN, HIGH);
-  matrix.loadSequence(LEDMATRIX_ANIMATION_SPINNING_COIN);
-  matrix.begin();
-  matrix.play(true);
+  // matrix.loadSequence(LEDMATRIX_ANIMATION_SPINNING_COIN);
+  // matrix.begin();
+  // matrix.play(true);
 
   /* Motor setup */
   Serial.println(F("Arming ESCS..."));
-  delay(2000);
+  // delay(500);
   m1_esc.arm();
   m1_esc.speed(ESC_SPEED_MIN);
   Serial.println("ESC 1 armed.");
-  delay(1000);
+  // delay(500);
   m2_esc.arm();
   m2_esc.speed(ESC_SPEED_MIN);
   Serial.println("ESC 2 armed.");
-  delay(1000);
+  // delay(500);
   m3_esc.arm();
   m3_esc.speed(ESC_SPEED_MIN);
   Serial.println("ESC 3 armed.");
-  delay(1000);
+  // delay(500);
   m4_esc.arm();
   m4_esc.speed(ESC_SPEED_MIN);
   Serial.println("ESC 4 armed.");
@@ -409,23 +409,35 @@ void loop() {
   imu.updateMeasurement();      // read from IMU wrapper  
   readReceiver();               // read PPM from the RC remote
 
-  if (receiverValue[CH_THR - 1] < MIN_THROTTLE) {
-    return;
-  }
+  // if (receiverValue[CH_THR - 1] < MIN_THROTTLE) {
+  //   return;
+  // }
   input_throttle = 0.15 * (receiverValue[CH_THR - 1]);
   inputX = 0.15 * (receiverValue[CH_ROLL - 1] - 1500);   // roll
   inputY = 0.15 * (receiverValue[CH_PITCH - 1] - 1500);  // pitch
   inputZ = 0.15 * (receiverValue[CH_YAW - 1] - 1500);    // yaw
 
-  // Serial.print(String(input_throttle)+"\n");
-  // Serial.print(String(inputX)+"\n");
-  // Serial.print(String(inputY)+"\n");
-  // Serial.print(String(inputZ)+"\n");
-  Serial.println("inX: " + String(inputX) + "\tinY: " + String(inputY) + "\tinZ: " + String(inputZ));
+  Serial.print("Throttle:");
+  Serial.print(input_throttle);
+  // Serial.print(",Roll:");
+  // Serial.print(inputX);
+  // Serial.print(",Pitch:");
+  // Serial.print(inputY);
+  // Serial.print(",Yaw:");
+  // Serial.println(inputZ);
+  Serial.println();
+  // Serial.println("inX:" + String(inputX) + "\tinY: " + String(inputY) + "\tinZ: " + String(inputZ));
 
   angleX = imu.getAngleX();
   angleY = imu.getAngleY();
   angleZ = imu.getAngleZ(); 
+
+  Serial.print("imu_x:");
+  Serial.print(angleX);
+  Serial.print(",imu_y:");
+  Serial.print(angleY);
+  Serial.print(",imu_z:");
+  Serial.println(angleZ);
 
   // Caculate error
   // errorRateX = inputX - (euler[2] * 180/M_PI);      // this converts from euler to degrees
@@ -444,9 +456,15 @@ void loop() {
   float pid_out_z = pid(errorRateZ, prevErrorRateZ, PGainZ,
                         IGainZ, prevIntRateZ, DGainZ);
 
-  // Serial.print(String(pid_out_x));
-  // Serial.print(String(pid_out_y));
-  // Serial.print(String(pid_out_z));
+  pid_out_z = 0.0;    // since yaw is drifting imu-only
+  
+  Serial.print("pid_out_x:");
+  Serial.print(pid_out_x);
+  Serial.print(",pid_out_y:");
+  Serial.print(pid_out_y);
+  Serial.print(",pid_out_z:");
+  Serial.print(pid_out_z);
+  Serial.println();
   // Serial.println("thr: " + String(input_throttle) + "\tpidX: " + String(pid_out_x) + "\tpidY: " + String(pid_out_y) + "\tpidZ: " + String(pid_out_z));
   // Serial.println();
 
@@ -458,8 +476,8 @@ void loop() {
   prevIntRateY = IGainY;
   prevIntRateZ = IGainZ;
 
-  if (input_throttle > 1800)
-    input_throttle = 1800;  // limit max throttle
+  if (input_throttle > MAX_THROTTLE)
+    input_throttle = MAX_THROTTLE;  // limit max throttle
 
   /* Convert into motor commands based on quadcopter dynamics model */
   motor_one_speed = MOTOR_CONSTANT*(input_throttle - pid_out_x - pid_out_y - pid_out_z);
@@ -467,44 +485,44 @@ void loop() {
   motor_three_speed = MOTOR_CONSTANT*(input_throttle + pid_out_x + pid_out_y - pid_out_z);
   motor_four_speed = MOTOR_CONSTANT*(input_throttle + pid_out_x - pid_out_y + pid_out_z);
 
-  // Serial.print("m1= ");
-  // Serial.print(String(motor_one_speed));
-  // Serial.print("\tm2= ");
-  // Serial.print(String(motor_two_speed));
-  // Serial.print("\tm3= ");
-  // Serial.print(String(motor_three_speed));
-  // Serial.print("\tm4= ");
-  // Serial.print(String(motor_four_speed));
-  // Serial.println();
+
 
   // /* limit motor speed from max */
   if (motor_one_speed >= MAX_THROTTLE) {
-    motor_one_speed = 1999;
+    motor_one_speed = MAX_THROTTLE;
   } else if (motor_one_speed < MIN_THROTTLE) {
     motor_one_speed = MIN_THROTTLE;
   }
   if (motor_two_speed >= MAX_THROTTLE) {
-    motor_two_speed = 1999;
+    motor_two_speed = MAX_THROTTLE;
   } else if (motor_two_speed < MIN_THROTTLE) {
     motor_two_speed = MIN_THROTTLE;
   }
   if (motor_three_speed >= MAX_THROTTLE) {
-    motor_three_speed = 1999;
+    motor_three_speed = MAX_THROTTLE;
   } else if (motor_three_speed < MIN_THROTTLE) {
     motor_three_speed = MIN_THROTTLE;
   }
   if (motor_four_speed >= MAX_THROTTLE) {
-    motor_four_speed = 1999;
+    motor_four_speed = MAX_THROTTLE;
   } else if (motor_four_speed < MIN_THROTTLE) {
     motor_four_speed = MIN_THROTTLE;
   }
 
+  Serial.print("m1:");
+  Serial.print(motor_one_speed);
+  Serial.print(",m2:");
+  Serial.print(motor_two_speed);
+  Serial.print(",m3:");
+  Serial.print(motor_three_speed);
+  Serial.print(",m4:");
+  Serial.println(motor_four_speed);
 /* Send the motor speed commands to individual ESCS */
 
   // Serial.print("Throttle= ");
   // Serial.println(String(receiverValue[CH_THR - 1]));
 
-  if (receiverValue[CH_THR - 1] < 1280) {
+  if (receiverValue[CH_THR - 1] < MIN_THROTTLE) {
     m1_esc.speed(ESC_STOP);
     m2_esc.speed(ESC_STOP);
     m3_esc.speed(ESC_STOP);
@@ -525,8 +543,6 @@ void loop() {
   // Serial.print("\t");
   // Serial.print(String(motor_four_speed));
   // Serial.println();
-
-  
 
   /* Wait for control loop to finish. */
   while (micros() - loopTimer < LOOP_TIME_MS) {
