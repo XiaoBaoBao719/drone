@@ -39,7 +39,11 @@
 //  * 3      | +/- 2000 degrees/s | 16.4 LSB/deg/s
 #define SENSITIVITY_GYRO (131)
 
-#define NUM_CALIB_CYCLES (20)
+/* State Estimate Params */
+const float COMPLEMENTARY_ALPHA = 0.05;
+
+/* Calibration Params */
+const float NUM_CALIB_CYCLES = 20;
 
 enum IMU_OUTPUT_TYPE {
     YPR,
@@ -108,12 +112,22 @@ private:
     float dT = 0.001; // imu sampling timestep
     unsigned long preInterval;
 
+    float rawAccX, rawAccY, rawAccZ;
+    float rawGyroX, rawGyroY, rawGyroZ;
     float accX, accY, accZ;         // meters / sec ^ 2
     float gyroX, gyroY, gyroZ;      // degrees / sec
     float angleAccX, angleAccY;
     float angleX, angleY, angleZ;
     float gZdT;
     float biasGyroX, biasGyroY, biasGyroZ = 0.0;
+
+    /* IMU offsets */
+    int32_t offset_ax = 0;
+    int32_t offset_ay = 0;
+    int32_t offset_az = 0;
+    int32_t offset_gx = 0;
+    int32_t offset_gy = 0;
+    int32_t offset_gz = 0;
 
 public:
     MPU6050Plus();
@@ -122,7 +136,9 @@ public:
 
     // void getMeasurement(ImuPoint *point);
     // void getMeasurementRaw(float data[]);
-    void updateMeasurement();
+    void updateRawMeasurements();
+
+    void updateEstimates();         // calculate and update attitude using complementary filter
 
     void filterMeasurements(float data[]);
 
@@ -132,9 +148,18 @@ public:
 
     void showVals(float data[]);
 
-    void calcBias();
+    void calcOffsets();
 
     /* Data Getters */
+
+    float getAccXRaw() { return rawAccX; }
+    float getAccYRaw() { return rawAccY; }
+    float getAccZRaw() { return rawAccZ; }
+
+    float getGyroXRaw() { return rawGyroX; }
+    float getGyroYRaw() { return rawGyroY; }
+    float getGyroZRaw() { return rawGyroZ; }
+
     float getAccX() { return accX; }
     float getAccY() { return accY; }
     float getAccZ() { return accZ; }
@@ -151,9 +176,13 @@ public:
 
     float getAngleGyroZ() { return gZdT; }
 
-    float getBiasGyroX() { return biasGyroX; }
-    float getBiasGyroY() { return biasGyroY; }
-    float getBiasGyroZ() { return biasGyroZ; }
+    double getOffsetGyroX() { return offset_gx; }
+    double getOffsetGyroY() { return offset_gy; }
+    double getOffsetGyroZ() { return offset_gz; }
+
+    double getOffsetAccX()  { return offset_ax; }
+    double getOffsetAccY()  { return offset_ay; }
+    double getOffsetAccZ()  { return offset_az; }
 };
 
 #endif  // endif MPU6050Plus_h

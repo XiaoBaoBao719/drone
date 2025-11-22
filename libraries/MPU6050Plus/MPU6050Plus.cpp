@@ -1,17 +1,6 @@
 #include <MPU6050Plus.h>
 #include <Arduino.h>
 
-const float COMPLEMENTARY_ALPHA = 0.05;
-const float CALIB_BIAS_CYCLES = 200;
-
-/* IMU offsets */
-int16_t offset_ax = 0;
-int16_t offset_ay = 0;
-int16_t offset_az = 1788;
-int16_t offset_gx = 220;
-int16_t offset_gy = 76;
-int16_t offset_gz = -85;
-
 void wrap(float* in) {
     if (*in <= -180.0) {
         *in = 180.0;
@@ -31,15 +20,6 @@ void MPU6050Plus::initialize(MPU6050 *mpu_, float sampleT)
 {
     mpu = mpu_;
 
-    // Apply offsets
-    mpu->setXGyroOffset(offset_gx);
-    mpu->setYGyroOffset(offset_gy);
-    mpu->setZGyroOffset(offset_gz);
-
-    mpu->setXAccelOffset(offset_ax);
-    mpu->setYAccelOffset(offset_ay);
-    mpu->setZAccelOffset(offset_az);
-
     // Create filters for each measurement channel
     for (size_t n = 0; n < sizeof(filters)/sizeof(filters[0]); n++ )
     {
@@ -55,28 +35,42 @@ void MPU6050Plus::initialize(MPU6050 *mpu_, float sampleT)
 
     
     /* Z axis bias calibration */
-    this->calcBias();
+    // this->calcOffsets();
     delay(100);
 }
 
-void MPU6050Plus::updateMeasurement() {
+void MPU6050Plus::updateRawMeasurements() {
     int16_t _ax_raw, _ay_raw, _az_raw;
     int16_t _gx_raw, _gy_raw, _gz_raw;
     float angleGyroX, angleGyroY, angleGyroZ;
     float data[6];
 
     mpu->getAcceleration(&_ax_raw,&_ay_raw,&_az_raw);
+
+    rawAccX = _ax_raw;
+    rawAccY = _ay_raw;
+    rawAccZ = _az_raw;
+
     /* Convert: Counts -> m/s^2 */
     accX = _ax_raw * G / SENSITIVITY_ACCEL;  // x
     accY = _ay_raw * G / SENSITIVITY_ACCEL;  // y
     accZ = _az_raw * G / SENSITIVITY_ACCEL;  // z
 
     mpu->getRotation(&_gx_raw,&_gy_raw,&_gz_raw);
+
+    rawGyroX = _gx_raw;
+    rawGyroY = _gy_raw;
+    rawGyroZ = _gz_raw;
+
     /* Convert: Counts -> deg/s */
     gyroX = _gx_raw / SENSITIVITY_GYRO;
     gyroY = _gy_raw / SENSITIVITY_GYRO;
     gyroZ = _gz_raw / SENSITIVITY_GYRO;
+}
 
+void MPU6050Plus::updateEstimates() {
+
+    float angleGyroX = 0.0, angleGyroY = 0.0, angleGyroZ = 0.0;
     /* Apply (RC) Low Pass filter */
     // this->filterMeasurements( data );
 
@@ -111,55 +105,86 @@ void MPU6050Plus::updateMeasurement() {
     // angleZ += angleGyroZ;           // add angleGyroZ since it is initially zero each loop
 }
 
-void MPU6050Plus::filterMeasurements(float data[]) {
+void MPU6050Plus::filterMeasurements(float data[])
+{
     // Update the measurement based on it's respective filter (ps. they are all low pass filters)
-    for (size_t index = 0; index < sizeof(data)/sizeof(data[0]); index++) {
-        data[index] = filters[index]->input( data[index] );
+    for (size_t index = 0; index < sizeof(data) / sizeof(data[0]); index++)
+    {
+        data[index] = filters[index]->input(data[index]);
     }
 }
 
-void MPU6050Plus::calcBias() {
-    angleZ = 0.0;
-    float start = angleZ;
-    float total = 0.0;
-    float avg;
-
-    float angleVals[] = {0.0, 0.0, 0.0};     // x, y, z
-    float startVals[] = {0.0, 0.0, 0.0};     // x, y, z
-    float totalVals[] = {0.0, 0.0, 0.0};     // x_total, y_total, z_total
-    float avgs[]      = {0.0, 0.0, 0.0};     // x_avg, y_avg, z_avg
+void MPU6050Plus::calcOffsets()
+{
+    float rawAcc[] = {0.0, 0.0, 0.0}; // x, y, z
+    float rawGyr[] = {0.0, 0.0, 0.0}; // x, y, z
+    float totals[] = {0.0, 0.0, 0.0}; // x_total, y_total, z_total
+    int32_t mean_acc_x = 0.0, mean_acc_y = 0.0, mean_acc_z = 0.0;
+    int32_t mean_gyr_x = 0.0, mean_gyr_y = 0.0, mean_gyr_z = 0.0;
 
     float diffX, diffY, diffZ;
 
-    for (int i = 0; i < CALIB_BIAS_CYCLES; i++) {
-        this->updateMeasurement();
-        // float temp = angleZ;
-        angleVals[0] = angleX;
-        angleVals[1] = angleY;
-        angleVals[2] = angleZ;
+    for (int i = 0; i < NUM_CALIB_CYCLES + 200; i++)
+    {
 
-        // float diff = temp - start;
-        diffX = angleVals[0] - startVals[0];
-        diffY = angleVals[1] - startVals[1];
-        diffZ = angleVals[2] - startVals[2];
+        this->updateRawMeasurements();
 
-        // total += diff;
-        totalVals[0] += diffX;
-        totalVals[1] += diffY;
-        totalVals[2] += diffZ;
+        if (i >= 200)
+        { // Start calibrating after first 100 cycles to allow sensors to settle
 
-        delay(1);
+            rawAcc[0] += rawAccX;
+            rawAcc[1] += rawAccY;
+            rawAcc[2] += rawAccZ;
+
+            rawGyr[0] += rawGyroX;
+            rawGyr[1] += rawGyroY;
+            rawGyr[2] += rawGyroZ;
+
+            // rawAcc[0] += rawAccX / NUM_CALIB_CYCLES;
+            // rawAcc[1] += rawAccY / NUM_CALIB_CYCLES;
+            // rawAcc[2] += rawAccZ / NUM_CALIB_CYCLES;
+
+            // rawGyr[0] += rawGyroX / NUM_CALIB_CYCLES;
+            // rawGyr[1] += rawGyroY / NUM_CALIB_CYCLES;
+            // rawGyr[2] += rawGyroZ / NUM_CALIB_CYCLES;
+
+            Serial.print("x_avg:");
+            Serial.print(rawAcc[0]);
+            Serial.print(",y_avg:");
+            Serial.print(rawAcc[1]);
+            Serial.print(",z_avg:");
+            Serial.println(rawAcc[2]);
+        }
+
+        delay(10);
     }
 
-    // avg = total / (float)CALIB_BIAS_CYCLES;
-    avgs[0] = totalVals[0] / (float) CALIB_BIAS_CYCLES;
-    avgs[1] = totalVals[1] / (float) CALIB_BIAS_CYCLES;
-    avgs[2] = totalVals[2] / (float) CALIB_BIAS_CYCLES;
+    mean_acc_x = rawAcc[0] / NUM_CALIB_CYCLES;
+    mean_acc_y = rawAcc[1] / NUM_CALIB_CYCLES;
+    mean_acc_z = rawAcc[2] / NUM_CALIB_CYCLES;
 
-    biasGyroX = avgs[0];
-    biasGyroY = avgs[1];
-    biasGyroZ = avgs[2];
+    mean_gyr_x = rawGyr[0] / NUM_CALIB_CYCLES;
+    mean_gyr_y = rawGyr[1] / NUM_CALIB_CYCLES;
+    mean_gyr_z = rawGyr[2] / NUM_CALIB_CYCLES;
 
+    // Apply offsets
+    mpu->setXGyroOffset((mean_gyr_x * -1));
+    mpu->setYGyroOffset((mean_gyr_y * -1));
+    mpu->setZGyroOffset((mean_gyr_z * -1));
+
+    mpu->setXAccelOffset((mean_acc_x * -1));
+    mpu->setYAccelOffset((mean_acc_y * -1));
+    mpu->setZAccelOffset((mean_acc_z * -1));
+
+    /* Set IMU offsets */
+    offset_ax = mean_acc_x;
+    offset_ay = mean_acc_y;
+    offset_az = mean_acc_z;
+    offset_gx = mean_gyr_x;
+    offset_gy = mean_gyr_y;
+    offset_gz = mean_gyr_z;
+
+    delay(1);
 }
 
 bool ImuPoint::isValid(){
