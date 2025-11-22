@@ -62,6 +62,34 @@ void MPU6050Plus::updateRawMeasurements() {
     accY = _ay_raw * G / SENSITIVITY_ACCEL;  // y
     accZ = _az_raw * G / SENSITIVITY_ACCEL;  // z
 
+    // Calculate filtered accelerometer values as the average of
+    // the new reading and the last LP_FILTER_DEGREE filtered readings
+    float _filtAccX = accX;
+    float _filtAccY = accZ;
+    float _filtAccZ = accZ;
+    for(int i = 0; i < LP_FILTER_DEGREE; i++)
+    {
+        _filtAccX += accXHist[i];
+        _filtAccY += accYHist[i];
+        _filtAccZ += accZHist[i];
+    }
+    
+    filtAccX = _filtAccX / (LP_FILTER_DEGREE + 1);
+    filtAccY = _filtAccY / (LP_FILTER_DEGREE + 1);
+    filtAccZ = _filtAccZ / (LP_FILTER_DEGREE + 1);
+
+    // Update the history arrays with the new filtered value
+    accXHist[lpFilterIndex] = filtAccX;
+    accYHist[lpFilterIndex] = filtAccY;
+    accZHist[lpFilterIndex] = filtAccZ;
+
+    // make the history buffers act as ring buffers
+    lpFilterIndex++;
+    if(lpFilterIndex == LP_FILTER_DEGREE)
+    {
+        lpFilterIndex = 0;
+    }
+
     mpu->getRotation(&_gx_raw,&_gy_raw,&_gz_raw);
 
     rawGyroX = _gx_raw - offset_gx;
@@ -75,7 +103,6 @@ void MPU6050Plus::updateRawMeasurements() {
 }
 
 void MPU6050Plus::updateEstimates() {
-
     float angleGyroX = 0.0, angleGyroY = 0.0, angleGyroZ = 0.0;
     /* Apply (RC) Low Pass filter */
     // this->filterMeasurements( data );

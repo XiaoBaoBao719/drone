@@ -39,6 +39,8 @@
 //  * 3      | +/- 2000 degrees/s | 16.4 LSB/deg/s
 #define SENSITIVITY_GYRO (131)
 
+#define LP_FILTER_DEGREE 5
+
 /* State Estimate Params */
 const float COMPLEMENTARY_ALPHA = 0.05;
 
@@ -115,6 +117,7 @@ private:
     float rawAccX, rawAccY, rawAccZ;
     float rawGyroX, rawGyroY, rawGyroZ;
     float accX, accY, accZ;         // meters / sec ^ 2
+    float filtAccX, filtAccY, filtAccZ;
     float gyroX, gyroY, gyroZ;      // degrees / sec
     float angleAccX, angleAccY;
     float angleX, angleY, angleZ;
@@ -128,6 +131,12 @@ private:
     int32_t offset_gx = 0;
     int32_t offset_gy = 0;
     int32_t offset_gz = 0;
+
+    // Accelerometer LP filter history buffers
+    float accXHist[LP_FILTER_DEGREE] = {0.0};
+    float accYHist[LP_FILTER_DEGREE] = {0.0};
+    float accZHist[LP_FILTER_DEGREE] = {0.0};
+    short lpFilterIndex = 0;
 
 public:
     MPU6050Plus();
