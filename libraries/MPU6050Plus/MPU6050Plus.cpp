@@ -75,8 +75,6 @@ void MPU6050Plus::updateRawMeasurements() {
 }
 
 void MPU6050Plus::updateEstimates() {
-
-    float angleGyroX = 0.0, angleGyroY = 0.0, angleGyroZ = 0.0;
     /* Apply (RC) Low Pass filter */
     // this->filterMeasurements( data );
 
@@ -89,26 +87,24 @@ void MPU6050Plus::updateEstimates() {
     float dt = (Tnew - preInterval) * 1e-3;
     preInterval = Tnew;
 
-    /* Calculate angleGyro measurements */
-    angleGyroX = gyroX * dT;           // 'roll'
-    angleGyroY = gyroY * dT;           // 'pitch'
-    angleGyroZ = gyroZ * dT; // biasGyroZ;           // 'yaw'
-
-    gZdT = gyroZ * dT;
+    /* Integrate gyro measurements to update estimate of gyro angle */
+    angleGyroX += gyroX * dT;           // 'roll'
+    angleGyroY += gyroY * dT;           // 'pitch'
+    angleGyroZ += gyroZ * dT; // biasGyroZ;           // 'yaw'
 
     /* Sensor fusion of gyro and accel angles */
     // TODO: EKF sensor fusion
 
-    // Ccomplementary filter sensor fusion  (X and Y axis inverted)
-    angleY = COMPLEMENTARY_ALPHA * angleGyroX + (1.0 - COMPLEMENTARY_ALPHA) * angleAccX - biasGyroX;
-    angleX = COMPLEMENTARY_ALPHA * angleGyroY + (1.0 - COMPLEMENTARY_ALPHA) * angleAccY - biasGyroY;
+    // Ccomplementary filter sensor fusion  (X and Y axis swapped w/ X inverted)
+    angleY = (COMPLEMENTARY_ALPHA * angleGyroX) + (1.0 - COMPLEMENTARY_ALPHA) * angleAccX;
+    angleX = (COMPLEMENTARY_ALPHA * angleGyroY) + (1.0 - COMPLEMENTARY_ALPHA) * angleAccY;
     angleX = angleX * -1;   // invert X-axis for this convention
-    angleZ = angleGyroZ;           // add angleGyroZ since it is initially zero each loop
+    angleZ = (COMPLEMENTARY_ALPHA * angleGyroZ);           // add angleGyroZ since it is initially zero each loop
 
     // // Ccomplementary filter sensor fusion       (X - foward, Y - facing left )
-    // angleX = COMPLEMENTARY_ALPHA * angleGyroX + (1.0 - COMPLEMENTARY_ALPHA) * angleAccX - biasGyroX;
-    // angleY = COMPLEMENTARY_ALPHA * angleGyroY + (1.0 - COMPLEMENTARY_ALPHA) * angleAccY - biasGyroY;
-    // angleZ += angleGyroZ;           // add angleGyroZ since it is initially zero each loop
+    // angleX = COMPLEMENTARY_ALPHA * angleGyroX + (1.0 - COMPLEMENTARY_ALPHA) * angleAccX;
+    // angleY = COMPLEMENTARY_ALPHA * angleGyroY + (1.0 - COMPLEMENTARY_ALPHA) * angleAccY;
+    // angleZ = COMPLEMENTARY_ALPHA * angleGyroZ;           // add angleGyroZ since it is initially zero each loop
 }
 
 void MPU6050Plus::filterMeasurements(float data[])

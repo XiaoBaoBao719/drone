@@ -40,10 +40,10 @@
 #define SENSITIVITY_GYRO (131)
 
 /* State Estimate Params */
-const float COMPLEMENTARY_ALPHA = 0.05;
+const float COMPLEMENTARY_ALPHA = 0.2; // 0.05;
 
 /* Calibration Params */
-const float NUM_CALIB_CYCLES = 20;
+const float NUM_CALIB_CYCLES = 30;
 
 enum IMU_OUTPUT_TYPE {
     YPR,
@@ -120,6 +120,8 @@ private:
     float angleX, angleY, angleZ;
     float gZdT;
     float biasGyroX, biasGyroY, biasGyroZ = 0.0;
+
+    float angleGyroX = 0.0, angleGyroY = 0.0, angleGyroZ = 0.0;
 
     /* IMU offsets */
     int32_t offset_ax = 0;
