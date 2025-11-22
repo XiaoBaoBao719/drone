@@ -33,7 +33,13 @@ void MPU6050Plus::initialize(MPU6050 *mpu_, float sampleT)
     // dT = sampleT;
     preInterval = millis();
 
+    mpu->setXGyroOffset(0);
+    mpu->setYGyroOffset(0);
+    mpu->setZGyroOffset(0);
     
+    mpu->setXAccelOffset(0);
+    mpu->setYAccelOffset(0);
+    mpu->setZAccelOffset(0);
     /* Z axis bias calibration */
     // this->calcOffsets();
     delay(100);
@@ -47,9 +53,9 @@ void MPU6050Plus::updateRawMeasurements() {
 
     mpu->getAcceleration(&_ax_raw,&_ay_raw,&_az_raw);
 
-    rawAccX = _ax_raw;
-    rawAccY = _ay_raw;
-    rawAccZ = _az_raw;
+    rawAccX = _ax_raw - offset_ax;
+    rawAccY = _ay_raw - offset_ay;
+    rawAccZ = _az_raw - offset_az;
 
     /* Convert: Counts -> m/s^2 */
     accX = _ax_raw * G / SENSITIVITY_ACCEL;  // x
@@ -58,9 +64,9 @@ void MPU6050Plus::updateRawMeasurements() {
 
     mpu->getRotation(&_gx_raw,&_gy_raw,&_gz_raw);
 
-    rawGyroX = _gx_raw;
-    rawGyroY = _gy_raw;
-    rawGyroZ = _gz_raw;
+    rawGyroX = _gx_raw - offset_gx;
+    rawGyroY = _gy_raw - offset_gy;
+    rawGyroZ = _gz_raw - offset_gz;
 
     /* Convert: Counts -> deg/s */
     gyroX = _gx_raw / SENSITIVITY_GYRO;
@@ -167,14 +173,14 @@ void MPU6050Plus::calcOffsets()
     mean_gyr_y = rawGyr[1] / NUM_CALIB_CYCLES;
     mean_gyr_z = rawGyr[2] / NUM_CALIB_CYCLES;
 
-    // Apply offsets
-    mpu->setXGyroOffset((mean_gyr_x * -1));
-    mpu->setYGyroOffset((mean_gyr_y * -1));
-    mpu->setZGyroOffset((mean_gyr_z * -1));
+    // // Apply offsets
+    // mpu->setXGyroOffset((mean_gyr_x));
+    // mpu->setYGyroOffset((mean_gyr_y));
+    // mpu->setZGyroOffset((mean_gyr_z));
 
-    mpu->setXAccelOffset((mean_acc_x * -1));
-    mpu->setYAccelOffset((mean_acc_y * -1));
-    mpu->setZAccelOffset((mean_acc_z * -1));
+    // mpu->setXAccelOffset((mean_acc_x));
+    // mpu->setYAccelOffset((mean_acc_y));
+    // mpu->setZAccelOffset((mean_acc_z));
 
     /* Set IMU offsets */
     offset_ax = mean_acc_x;
