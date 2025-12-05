@@ -11,7 +11,7 @@
 int motorPins[] = { 5, 6, 9, 10 };
 
 #define SPEED_MIN (1000)
-#define SPEED_MAX (1800)
+#define SPEED_MAX (1500)
 #define ESC_STOP (500)
 #define MIN_ARM_TIME (500)
 

@@ -75,26 +75,28 @@ Serial.print(imu.getOffsetAccY());
 Serial.print(",offset_acc_z:");
 Serial.println(imu.getOffsetAccZ());
 
-delay(10000);
+delay(3000);
 }
 
 void loop() {
   imu.updateRawMeasurements();
 
-  if ((millis() - print_ts) > 10) {
-    Serial.print("raw_acc_X:");
-    Serial.print(imu.getAccXRaw());
-    Serial.print(",raw_acc_Y:");
-    Serial.print(imu.getAccYRaw());
-    Serial.print(",raw_acc_Z:");
-    Serial.println(imu.getAccZRaw());
+  imu.updateEstimates();
 
-    // Serial.print("X:");
-    // Serial.print(imu.getAngleX());
-    // Serial.print(",Y:");
-    // Serial.print(imu.getAngleY());
-    // Serial.print(",Z:");
-    // Serial.println(imu.getAngleZ());
+  if ((millis() - print_ts) > 10) {
+    // Serial.print("raw_acc_X:");
+    // Serial.print(imu.getAccXRaw());
+    // Serial.print(",raw_acc_Y:");
+    // Serial.print(imu.getAccYRaw());
+    // Serial.print(",raw_acc_Z:");
+    // Serial.println(imu.getAccZRaw());
+
+    Serial.print("X:");
+    Serial.print(imu.getAngleX());
+    Serial.print(",Y:");
+    Serial.print(imu.getAngleY());
+    Serial.print(",Z:");
+    Serial.println(imu.getAngleZ());
   //   Serial.print("biasx:");
   // Serial.print(imu.getBiasGyroX());
   // Serial.print("biasy:");

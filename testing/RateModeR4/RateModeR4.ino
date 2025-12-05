@@ -51,7 +51,7 @@ float ypr[3];         // [yaw, pitch, roll] Angle conversion w/ gravity vector
 #define MOTOR_4_PWM (10)
 
 #define ESC_SPEED_MIN (1000)
-#define ESC_SPEED_MAX (1800)
+#define ESC_SPEED_MAX (2000)
 #define ESC_STOP (500)
 #define MIN_ARM_TIME (500)
 
@@ -362,11 +362,10 @@ void setup() {
 
   /* Create IMU data wrapper */
   imu.initialize(&mpu, IMU_SAMPLE_FREQ);
-
   Serial.println("IMU initialized");
 
   // Calibrate the IMU accel/gyro offsets
-  // calibrateIMU();    // --- no need as the mpu wrapper takes care of calibration with preset values
+  imu.calcOffsets();
 
   /* RC PPM Receiver Setup */
   ppm.begin(PPM_INTERRUPT, false);
@@ -406,7 +405,8 @@ void loop() {
   //   readReceiver();               // read PPM from the RC remote
   // }
 
-  imu.updateMeasurement();      // read from IMU wrapper  
+  imu.updateRawMeasurements();      // read from IMU wrapper  
+  imu.updateEstimates();            // get attitude estimate
   readReceiver();               // read PPM from the RC remote
 
   // if (receiverValue[CH_THR - 1] < MIN_THROTTLE) {
@@ -509,14 +509,14 @@ void loop() {
     motor_four_speed = MIN_THROTTLE;
   }
 
-  Serial.print("m1:");
-  Serial.print(motor_one_speed);
-  Serial.print(",m2:");
-  Serial.print(motor_two_speed);
-  Serial.print(",m3:");
-  Serial.print(motor_three_speed);
-  Serial.print(",m4:");
-  Serial.println(motor_four_speed);
+  // Serial.print("m1:");
+  // Serial.print(motor_one_speed);
+  // Serial.print(",m2:");
+  // Serial.print(motor_two_speed);
+  // Serial.print(",m3:");
+  // Serial.print(motor_three_speed);
+  // Serial.print(",m4:");
+  // Serial.println(motor_four_speed);
 /* Send the motor speed commands to individual ESCS */
 
   // Serial.print("Throttle= ");
@@ -545,7 +545,7 @@ void loop() {
   // Serial.println();
 
   /* Wait for control loop to finish. */
-  while (micros() - loopTimer < LOOP_TIME_MS) {
-    loopTimer = micros();
-  }
+  // while (micros() - loopTimer < LOOP_TIME_MS) {
+  //   loopTimer = micros();
+  // }
 }

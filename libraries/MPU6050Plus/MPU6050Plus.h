@@ -42,7 +42,7 @@
 #define LP_FILTER_DEGREE 5
 
 /* State Estimate Params */
-const float COMPLEMENTARY_ALPHA = 0.2; // 0.05;
+const float COMPLEMENTARY_ALPHA = 0.95; // 0.05;
 
 /* Calibration Params */
 const float NUM_CALIB_CYCLES = 30;

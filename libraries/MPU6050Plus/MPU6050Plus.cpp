@@ -130,6 +130,25 @@ void MPU6050Plus::updateEstimates() {
     angleX = angleX * -1;   // invert X-axis for this convention
     angleZ = (COMPLEMENTARY_ALPHA * angleGyroZ);           // add angleGyroZ since it is initially zero each loop
 
+    if ( angleX > 180.0 ) {
+        angleX = angleX - 360.0;
+    } else if (angleX <= -180.0) {
+        angleX = angleX + 360.0;
+    }
+
+    if ( angleY > 180.0 ) {
+        angleY = angleY - 360.0;
+    } else if (angleY <= -180.0) {
+        angleY = angleY + 360.0;
+    }
+
+    if ( angleZ > 180.0 ) {
+        angleZ = angleZ - 360.0;
+    } else if (angleZ <= -180.0) {
+        angleZ = angleZ + 360.0;
+    }
+
+
     // // Ccomplementary filter sensor fusion       (X - foward, Y - facing left )
     // angleX = COMPLEMENTARY_ALPHA * angleGyroX + (1.0 - COMPLEMENTARY_ALPHA) * angleAccX;
     // angleY = COMPLEMENTARY_ALPHA * angleGyroY + (1.0 - COMPLEMENTARY_ALPHA) * angleAccY;
@@ -154,6 +173,14 @@ void MPU6050Plus::calcOffsets()
     int32_t mean_gyr_x = 0.0, mean_gyr_y = 0.0, mean_gyr_z = 0.0;
 
     float diffX, diffY, diffZ;
+
+    /* Reset the IMU's offsets */
+    mpu->setXGyroOffset(0);
+    mpu->setYGyroOffset(0);
+    mpu->setZGyroOffset(0);
+    mpu->setXAccelOffset(0);
+    mpu->setYAccelOffset(0);
+    mpu->setZAccelOffset(0);
 
     for (int i = 0; i < NUM_CALIB_CYCLES + 200; i++)
     {
