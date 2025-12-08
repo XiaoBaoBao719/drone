@@ -15,6 +15,9 @@ volatile byte ledState = LOW;
 volatile int counts = 0;
 
 // clock
+unsigned long interval = 10;  // 10 ms update rate
+unsigned long prevMillis = 0;
+unsigned long currMillis = 0;
 uint32_t print_ts;
 uint32_t loopTimer;
 
@@ -23,8 +26,8 @@ MPU6050 mpu(0x68, &Wire1);
 MPU6050Plus imu;
 EulerRPY rpy;
 
-const float IMU_SAMPLE_FREQ_MS = 1000;  // millisecs
-const float IMU_SAMPLE_FREQ = 0.001;    // time interval between imu points (secs)
+// const float IMU_SAMPLE_FREQ_MS = 1000;  // millisecs
+const float IMU_SAMPLE_FREQ = 0.01;    // time interval between imu points (secs)
 
 void i2cSetup() {
   // join I2C bus (I2Cdev library doesn't do this automatically)
@@ -66,24 +69,36 @@ void setup() {
 
   /* Perform calibration */
 
-imu.calcOffsets();
+  // imu.calcOffsets();
+  mpu.CalibrateAccel(20);
+  mpu.CalibrateGyro(20);
 
-Serial.print("offset_acc_x:");
-Serial.print(imu.getOffsetAccX());
-Serial.print(",offset_acc_y:");
-Serial.print(imu.getOffsetAccY());
-Serial.print(",offset_acc_z:");
-Serial.println(imu.getOffsetAccZ());
+  mpu.PrintActiveOffsets();
 
-delay(3000);
+  Serial.print("offset_acc_x:");
+  Serial.print(imu.getOffsetAccX());
+  Serial.print(",offset_acc_y:");
+  Serial.print(imu.getOffsetAccY());
+  Serial.print(",offset_acc_z:");
+  Serial.println(imu.getOffsetAccZ());
+
+  delay(3000);
 }
 
+
+
 void loop() {
-  imu.updateRawMeasurements();
 
-  imu.updateEstimates();
+  // Update measurements at 100 hz
+  currMillis = millis();
+  if (currMillis - prevMillis >= interval) {
+    prevMillis = currMillis;
 
-  if ((millis() - print_ts) > 10) {
+    imu.updateRawMeasurements();
+    imu.updateEstimates();
+  }
+
+  if ((millis() - print_ts) > interval) {
     // Serial.print("raw_acc_X:");
     // Serial.print(imu.getAccXRaw());
     // Serial.print(",raw_acc_Y:");
@@ -97,19 +112,21 @@ void loop() {
     Serial.print(imu.getAngleY());
     Serial.print(",Z:");
     Serial.println(imu.getAngleZ());
-  //   Serial.print("biasx:");
-  // Serial.print(imu.getBiasGyroX());
-  // Serial.print("biasy:");
-  // Serial.print(imu.getBiasGyroY());
-  // Serial.print("biasz:");
-  // Serial.println(imu.getBiasGyroZ());
+
+
+    //   Serial.print("biasx:");
+    // Serial.print(imu.getBiasGyroX());
+    // Serial.print("biasy:");
+    // Serial.print(imu.getBiasGyroY());
+    // Serial.print("biasz:");
+    // Serial.println(imu.getBiasGyroZ());
     print_ts = millis();
   }
 
   // wait for control timer loop to finish
-  while (micros() - loopTimer < IMU_SAMPLE_FREQ_MS) {
-    loopTimer = micros();
-  }
+  // while (micros() - loopTimer < IMU_SAMPLE_FREQ_MS) {
+  //   loopTimer = micros();
+  // }
 }
 
 void doThing() {

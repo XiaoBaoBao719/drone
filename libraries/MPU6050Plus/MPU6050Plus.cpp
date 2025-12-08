@@ -1,12 +1,13 @@
 #include <MPU6050Plus.h>
 #include <Arduino.h>
 
-void wrap(float* in) {
-    if (*in <= -180.0) {
-        *in = 180.0;
-    } else if (*in >= 180.0) {
-        *in = -180.0;
+static inline float wrapAngleDeg(float angle) {
+    if (angle > 180.0) {
+        angle -= 360.0;
+    } else if (angle < -180.0) {
+        angle += 360.0;
     }
+    return angle;
 }
 
 MPU6050Plus::MPU6050Plus() {
@@ -30,7 +31,7 @@ void MPU6050Plus::initialize(MPU6050 *mpu_, float sampleT)
     // Update current time
     start_time = (float) ( micros() ) * 1e-6;
     // Update sampling period for taking measurements
-    // dT = sampleT;
+    dT = sampleT;
     preInterval = millis();
 
     mpu->setXGyroOffset(0);
@@ -53,9 +54,9 @@ void MPU6050Plus::updateRawMeasurements() {
 
     mpu->getAcceleration(&_ax_raw,&_ay_raw,&_az_raw);
 
-    rawAccX = _ax_raw - offset_ax;
-    rawAccY = _ay_raw - offset_ay;
-    rawAccZ = _az_raw - offset_az;
+    rawAccX = _ax_raw;
+    rawAccY = _ay_raw;
+    rawAccZ = _az_raw;
 
     /* Convert: Counts -> m/s^2 */
     accX = _ax_raw * G / SENSITIVITY_ACCEL;  // x
@@ -97,56 +98,46 @@ void MPU6050Plus::updateRawMeasurements() {
     rawGyroZ = _gz_raw - offset_gz;
 
     /* Convert: Counts -> deg/s */
-    gyroX = _gx_raw / SENSITIVITY_GYRO;
-    gyroY = _gy_raw / SENSITIVITY_GYRO;
-    gyroZ = _gz_raw / SENSITIVITY_GYRO;
+    gyroX = _gx_raw * SENSITIVITY_GYRO;
+    gyroY = _gy_raw * SENSITIVITY_GYRO;
+    gyroZ = _gz_raw * SENSITIVITY_GYRO;
 }
 
+/**
+ * @brief Update the attitude estimates using a complementary filter
+ */
 void MPU6050Plus::updateEstimates() {
     // float angleGyroX = 0.0, angleGyroY = 0.0, angleGyroZ = 0.0;
     /* Apply (RC) Low Pass filter */
     // this->filterMeasurements( data );
 
-    /* Calculate angleAcc measurements */
-    angleAccY = atan2( -filtAccX, ( sqrt( filtAccY* filtAccY+ filtAccZ * filtAccZ )) ) * RAD_2_DEG; // Calculate pitch tilt angle from accel in radians
-    angleAccX = atan2( filtAccY , filtAccZ) * RAD_2_DEG;  // Calculate the roll tilt angle from accel in radians
+    /* Calculate angleAcc measurements using filtered Acc values */
+    angleAccY = atan2( -filtAccX, sqrt( filtAccY * filtAccY + filtAccZ * filtAccZ ) ) * RAD_2_DEG ; // Calculate pitch tilt angle from accel in degs
+    angleAccX = atan2( filtAccY , sqrt( filtAccZ * filtAccZ + filtAccX * filtAccX ) ) * RAD_2_DEG;  // Calculate the roll tilt angle from accel in degs
     // TODO: Calcualte the yaw angle from a magnetometer reading
 
-    unsigned long Tnew = millis();
-    float dt = (Tnew - preInterval) * 1e-3;
-    preInterval = Tnew;
+    // unsigned long Tnew = millis();
+    // float dt = (Tnew - preInterval) * 1e-3;
+    // preInterval = Tnew;
 
     /* Integrate gyro measurements to update estimate of gyro angle */
-    angleGyroX += gyroX * dT;           // 'roll'
-    angleGyroY += gyroY * dT;           // 'pitch'
-    angleGyroZ += gyroZ * dT; // biasGyroZ;           // 'yaw'
+    angleGyroX += gyroX * dT;           // 'roll'       degs
+    angleGyroY += gyroY * dT;           // 'pitch'      degs
+    angleGyroZ += gyroZ * dT;           // 'yaw'        degs
 
     /* Sensor fusion of gyro and accel angles */
     // TODO: EKF sensor fusion
 
-    // Ccomplementary filter sensor fusion  (X and Y axis swapped w/ X inverted)
+    // Complementary filter sensor fusion  (X and Y axis swapped w/ X inverted)
     angleY = (COMPLEMENTARY_ALPHA * angleGyroX) + (1.0 - COMPLEMENTARY_ALPHA) * angleAccX;
     angleX = (COMPLEMENTARY_ALPHA * angleGyroY) + (1.0 - COMPLEMENTARY_ALPHA) * angleAccY;
     angleX = angleX * -1;   // invert X-axis for this convention
     angleZ = (COMPLEMENTARY_ALPHA * angleGyroZ);           // add angleGyroZ since it is initially zero each loop
 
-    if ( angleX > 180.0 ) {
-        angleX = angleX - 360.0;
-    } else if (angleX <= -180.0) {
-        angleX = angleX + 360.0;
-    }
-
-    if ( angleY > 180.0 ) {
-        angleY = angleY - 360.0;
-    } else if (angleY <= -180.0) {
-        angleY = angleY + 360.0;
-    }
-
-    if ( angleZ > 180.0 ) {
-        angleZ = angleZ - 360.0;
-    } else if (angleZ <= -180.0) {
-        angleZ = angleZ + 360.0;
-    }
+    // Wrap angles to -180 to +180 deg
+    // angleX = wrapAngleDeg(angleX);
+    // angleY = wrapAngleDeg(angleY);
+    // angleZ = wrapAngleDeg(angleZ);
 
 
     // // Ccomplementary filter sensor fusion       (X - foward, Y - facing left )
@@ -225,14 +216,25 @@ void MPU6050Plus::calcOffsets()
     mean_gyr_y = rawGyr[1] / NUM_CALIB_CYCLES;
     mean_gyr_z = rawGyr[2] / NUM_CALIB_CYCLES;
 
-    // // Apply offsets
-    // mpu->setXGyroOffset((mean_gyr_x));
-    // mpu->setYGyroOffset((mean_gyr_y));
-    // mpu->setZGyroOffset((mean_gyr_z));
+    Serial.println("Calibration complete.");
+    Serial.print("Accel Offsets - X:");
+    Serial.print(mean_acc_x);
+    Serial.print(", Y:");
+    Serial.print(mean_acc_y);
+    Serial.print(", Z:");
+    Serial.println(mean_acc_z);
 
-    // mpu->setXAccelOffset((mean_acc_x));
-    // mpu->setYAccelOffset((mean_acc_y));
-    // mpu->setZAccelOffset((mean_acc_z));
+    // // Apply offsets
+    mpu->setXGyroOffset((mean_gyr_x));
+    mpu->setYGyroOffset((mean_gyr_y));
+    mpu->setZGyroOffset((mean_gyr_z));
+
+    mpu->setXAccelOffset((mean_acc_x));
+    mpu->setYAccelOffset((mean_acc_y));
+    mpu->setZAccelOffset((mean_acc_z));
+
+    Serial.println("Applied Offsets:");
+    mpu->PrintActiveOffsets();
 
     /* Set IMU offsets */
     offset_ax = mean_acc_x;

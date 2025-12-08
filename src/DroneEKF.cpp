@@ -3,7 +3,6 @@
 // #include <BasicLinearAlgebra.h>
 
 /*
-
     Simple EKF for a quadcopter drone
 
     State vector:
@@ -26,35 +25,7 @@
 static inline double wrap_angle(double angle) {
     if (angle > M_PI) angle -= (2.0 * M_PI);
     else if (angle < M_PI) angle += (2.0 * M_PI); 
-    return angle
-}
-
-/* Euler to Rotation matrix helper function */
-static inline void euler_to_rotation_matrix(double roll, double pitch, double yaw, double R[3][3]) {
-    double cr = cos(roll), sr = sin(roll);
-    double cp = cos(pitch), sp = sin(pitch);
-    double cy = cos(yaw), sy = sin(yaw);
-
-    R[0][0] = cy*cp;
-    R[0][1] = cy*sp*sr - sy*cr;
-    R[0][2] = cy*sp*cr + sy*sr;
-
-    R[1][0] = sy*cp;
-    R[1][1] = sy*sp*sr + cy*cr;
-    R[1][2] = sy*sp*cr - cy*sr;
-
-    R[2][0] = -sp;
-    R[2][1] = cp*sr;
-    R[2][2] = cp*cr;
-}
-
-/** Helper functions for quaternion maths */
-static inline void quat_normalize(double q[4]) {
-    double norm = sqrt(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
-    q[0] /= norm;
-    q[1] /= norm;
-    q[2] /= norm;
-    q[3] /= norm;
+    return angle;
 }
 
 static inline Vector3 rotate_body_z_to_world(const double q[4], double z_accel) {
@@ -79,7 +50,6 @@ DroneEKF::DroneEKF(float accel_data[]) {
     
     
 }
-
 
 /**
  * Constructor

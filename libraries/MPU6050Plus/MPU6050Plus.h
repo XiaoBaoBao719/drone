@@ -37,7 +37,8 @@
 //  * 1      | +/- 500 degrees/s  | 65.5 LSB/deg/s
 //  * 2      | +/- 1000 degrees/s | 32.8 LSB/deg/s
 //  * 3      | +/- 2000 degrees/s | 16.4 LSB/deg/s
-#define SENSITIVITY_GYRO (131)
+// #define SENSITIVITY_GYRO (131)
+# define SENSITIVITY_GYRO (250.0 / 32768.0) // deg/s per LSB for +/-250 dps setting
 
 #define LP_FILTER_DEGREE 5
 
@@ -45,7 +46,7 @@
 const float COMPLEMENTARY_ALPHA = 0.95; // 0.05;
 
 /* Calibration Params */
-const float NUM_CALIB_CYCLES = 30;
+const float NUM_CALIB_CYCLES = 50;
 
 enum IMU_OUTPUT_TYPE {
     YPR,
@@ -111,7 +112,7 @@ private:
     ImuPoint *lastMeas;
     float fused_meas[3]; // rpy (x,y,z) format
     float start_time;
-    float dT = 0.001; // imu sampling timestep
+    float dT = 0.01; // imu sampling timestep 100 Hz default
     unsigned long preInterval;
 
     float rawAccX, rawAccY, rawAccZ;
