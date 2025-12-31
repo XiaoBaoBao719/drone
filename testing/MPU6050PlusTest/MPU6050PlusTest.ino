@@ -27,7 +27,7 @@ MPU6050Plus imu;
 EulerRPY rpy;
 
 // const float IMU_SAMPLE_FREQ_MS = 1000;  // millisecs
-const float IMU_SAMPLE_FREQ = 0.01;    // time interval between imu points (secs)
+const float IMU_SAMPLE_FREQ = 0.1;    // time interval between imu points (secs)
 
 void i2cSetup() {
   // join I2C bus (I2Cdev library doesn't do this automatically)
