@@ -8,10 +8,10 @@ flight computer:
 rpi 3b
 
 motors:
-todo
+Duckietown DX2205 2300 KV
 
 escs:
-todo
+BrushlessTM 30A 2-4S lipo; bec 5v/2A
 
 sensors:
 adafruit MPU6050 (imu)
