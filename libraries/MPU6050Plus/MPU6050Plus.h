@@ -24,21 +24,24 @@
 #define RAD_2_DEG ( 180.0 / M_PI )
 #define DEG_2_RAD ( M_PI / 180.0 )
 
+#define LSB_RANGE (32768.0) // 16 bit signed int range
+
+#define SENSITIVITY_ACCEL (16384)
 //  * AFS_SEL | Full Scale Range | LSB Sensitivity
 //  * --------+------------------+----------------
 //  * 0       | +/- 2g           | 16384 LSB/mg
 //  * 1       | +/- 4g           | 8192 LSB/mg
 //  * 2       | +/- 8g           | 4096 LSB/mg
 //  * 3       | +/- 16g          | 2048 LSB/mg
-#define SENSITIVITY_ACCEL (16384)
+
+// #define SENSITIVITY_GYRO (131)
+# define SENSITIVITY_GYRO (250.0 / 32768.0) // deg/s per LSB for +/-250 dps setting
 //  * FS_SEL | Full Scale Range   | LSB Sensitivity
 //  * -------+--------------------+----------------
 //  * 0      | +/- 250 degrees/s  | 131 LSB/deg/s
 //  * 1      | +/- 500 degrees/s  | 65.5 LSB/deg/s
 //  * 2      | +/- 1000 degrees/s | 32.8 LSB/deg/s
 //  * 3      | +/- 2000 degrees/s | 16.4 LSB/deg/s
-// #define SENSITIVITY_GYRO (131)
-# define SENSITIVITY_GYRO (250.0 / 32768.0) // deg/s per LSB for +/-250 dps setting
 
 #define LP_FILTER_DEGREE 5
 
@@ -47,6 +50,20 @@ const float COMPLEMENTARY_ALPHA = 0.95; // 0.05;
 
 /* Calibration Params */
 const float NUM_CALIB_CYCLES = 50;
+
+enum GYRO_SCALE {
+    MPU_GYR_250,
+    MPU_GYR_500,
+    MPU_GYR_1000,
+    MPU_GYR_2000
+};
+
+enum ACCEL_SCALE {
+    MPU_ACC_2G,
+    MPU_ACC_4G,
+    MPU_ACC_8G,
+    MPU_ACC_16G
+};
 
 enum IMU_OUTPUT_TYPE {
     YPR,
@@ -126,6 +143,14 @@ private:
     float biasGyroX, biasGyroY, biasGyroZ = 0.0;
 
     float angleGyroX = 0.0, angleGyroY = 0.0, angleGyroZ = 0.0;
+    float quaternion[4] = {0.0, 0.0, 0.0, 0.0}; // w, x, y, z format
+
+    /* MPU scaling factors */
+    float gyroScaleFactor;
+    int gyroScale;
+
+    float accScaleFactor;
+    int accScale;
 
     /* IMU offsets */
     int32_t offset_ax = 0;
@@ -150,9 +175,14 @@ public:
     // void getMeasurementRaw(float data[]);
     void updateRawMeasurements();
 
-    void updateEstimates();         // calculate and update attitude using complementary filter
+    void complementaryFilter();         // calculate and update attitude using complementary filter
+    void kalmanFilter();                // calculate and update attitude using kalman filter
 
     void filterMeasurements(float data[]);
+    void invertAxis(int axis);
+    void invertX() { invertedX != invertedX; }
+    void invertY() { invertedY != invertedY; }
+    void invertZ() { invertedZ != invertedZ; }
 
     EulerRPY getRPY();
 
@@ -161,8 +191,11 @@ public:
     void showVals(float data[]);
 
     void calcOffsets();
+    void configureGyroScale(GYRO_SCALE scale);
+    void configureAccScale(ACCEL_SCALE scale);
 
     /* Data Getters */
+    void printInvertedAxes();
 
     float getAccXRaw() { return rawAccX; }
     float getAccYRaw() { return rawAccY; }
@@ -179,9 +212,11 @@ public:
     float getGyroY() { return gyroY; }
     float getGyroZ() { return gyroZ; }
 
-    float getAngleX() { return angleX; }        // angle X in degs
-    float getAngleY() { return angleY; }        // angle y in degs
-    float getAngleZ() { return angleZ; }        // angle z in degs
+    float getAngleX() { return (invertedX) ? angleX * -1.0 : angleX; }        // angle X in degs
+    float getAngleY() { return (invertedY) ? angleY * -1.0 : angleY; }        // angle y in degs
+    float getAngleZ() { return (invertedZ) ? angleZ * -1.0 : angleZ; }        // angle z in degs
+
+    float* angleAxisQuaternion();
     
     float getAngleAccX() { return angleAccX; }
     float getAngleAccY() { return angleAccY; }
@@ -195,6 +230,10 @@ public:
     double getOffsetAccX()  { return offset_ax; }
     double getOffsetAccY()  { return offset_ay; }
     double getOffsetAccZ()  { return offset_az; }
+
+    bool invertedX = false;
+    bool invertedY = false;
+    bool invertedZ = false;
 };
 
 #endif  // endif MPU6050Plus_h

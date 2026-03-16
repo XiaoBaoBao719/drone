@@ -27,7 +27,7 @@ MPU6050Plus imu;
 EulerRPY rpy;
 
 // const float IMU_SAMPLE_FREQ_MS = 1000;  // millisecs
-const float IMU_SAMPLE_FREQ = 0.1;    // time interval between imu points (secs)
+const float IMU_SAMPLE_FREQ = 0.01;    // time interval between imu points (secs)
 
 void i2cSetup() {
   // join I2C bus (I2Cdev library doesn't do this automatically)
@@ -40,6 +40,36 @@ void i2cSetup() {
 #endif
 }
 
+
+// # Source - https://stackoverflow.com/q/53033620
+// # Posted by Amir, modified by community. See post 'Timeline' for change history
+// # Retrieved 2026-03-12, License - CC BY-SA 4.0
+
+float euler_to_quaternion(float *q_, float yaw, float pitch, float roll) {
+
+  roll = roll * DEG_2_RAD;
+  pitch = pitch * DEG_2_RAD;
+  yaw = yaw * DEG_2_RAD;
+
+  float cy = cos(yaw * 0.5);
+  float sy = sin(yaw * 0.5);
+  float cp = cos(pitch * 0.5);
+  float sp = sin(pitch * 0.5);
+  float cr = cos(roll * 0.5);
+  float sr = sin(roll * 0.5);
+
+  float qw = cr * cp * cy + sr * sp * sy;
+  float qx = sr * cp * cy - cr * sp * sy;
+  float qy = cr * sp * cy + sr * cp * sy;
+  float qz = cr * cp * sy - sr * sp * cy;
+
+  q_[0] = qw;
+  q_[1] = qx;
+  q_[2] = qy;
+  q_[3] = qz;
+}
+  
+
 void setup() {
   Serial.begin(9600);
   /* Startup animation */
@@ -49,13 +79,13 @@ void setup() {
   // matrix.play(true);
 
   /* I2C devices setup section */
-  Serial.println(F("Initialize I2C devices..."));
+  // Serial.println(F("Initialize I2C devices..."));
   i2cSetup();
 
   /* IMU setup section */
-  Serial.println(F("Initialize MPU..."));
+  // Serial.println(F("Initialize MPU..."));
   mpu.initialize();
-  Serial.println("Testing MPU connection...");
+  // Serial.println("Testing MPU connection...");
   // Check if MPU is ready to send bytes
   while (mpu.testConnection() == false) {
     Serial.println("MPU connection failed! Retrying...");
@@ -64,8 +94,10 @@ void setup() {
   }
 
   /* Create MPU6050 Plus */
-  imu.initialize(&mpu, IMU_SAMPLE_FREQ);
-  print_ts = 0;
+  imu.initialize(&mpu, IMU_SAMPLE_FREQ);  print_ts = 0;
+
+  // Flip imu Y-axis since default coodinate frame is ENU
+  /* Print Gyro and Accel configs */
 
   /* Perform calibration */
 
@@ -73,19 +105,19 @@ void setup() {
   mpu.CalibrateAccel(20);
   mpu.CalibrateGyro(20);
 
-  mpu.PrintActiveOffsets();
+  // mpu.PrintActiveOffsets();
 
-  Serial.print("offset_acc_x:");
-  Serial.print(imu.getOffsetAccX());
-  Serial.print(",offset_acc_y:");
-  Serial.print(imu.getOffsetAccY());
-  Serial.print(",offset_acc_z:");
-  Serial.println(imu.getOffsetAccZ());
+  // Serial.print("offset_acc_x:");
+  // Serial.print(imu.getOffsetAccX());
+  // Serial.print(",offset_acc_y:");
+  // Serial.print(imu.getOffsetAccY());
+  // Serial.print(",offset_acc_z:");
+  // Serial.println(imu.getOffsetAccZ());
 
   delay(3000);
 }
 
-
+float q_[4];
 
 void loop() {
 
@@ -95,7 +127,7 @@ void loop() {
     prevMillis = currMillis;
 
     imu.updateRawMeasurements();
-    imu.updateEstimates();
+    imu.complementaryFilter();
   }
 
   if ((millis() - print_ts) > interval) {
@@ -106,13 +138,35 @@ void loop() {
     // Serial.print(",raw_acc_Z:");
     // Serial.println(imu.getAccZRaw());
 
-    Serial.print("X:");
-    Serial.print(imu.getAngleX());
-    Serial.print(",Y:");
-    Serial.print(imu.getAngleY());
-    Serial.print(",Z:");
-    Serial.println(imu.getAngleZ());
+    // Serial.print("acc_X:");
+    // Serial.print(imu.getAccX());
+    // Serial.print(",acc_Y:");
+    // Serial.print(imu.getAccY());
+    // Serial.print(",acc_Z:");
+    // Serial.println(imu.getAccZ());
 
+    // Serial.print("gyro_X:");
+    // Serial.print(imu.getGyroX());
+    // Serial.print(",gyro_Y:");
+    // Serial.print(imu.getGyroY());
+    // Serial.print(",gyro_Z:");
+    // Serial.println(imu.getGyroZ());
+
+    // Serial.print("X:");
+    // Serial.print(imu.getAngleX());
+    // Serial.print(",Y:");
+    // Serial.print(imu.getAngleY());
+    // Serial.print(",Z:");
+    // Serial.println(imu.getAngleZ());
+
+    // imu.printInvertedAxes();
+
+    float* q = imu.angleAxisQuaternion();
+    euler_to_quaternion(q_, imu.getAngleZ(), imu.getAngleY(), imu.getAngleX());
+    Serial.print(q_[0], 2); Serial.print(",");
+    Serial.print(q_[1], 2); Serial.print(",");
+    Serial.print(q_[2], 2); Serial.print(",");
+    Serial.print(q_[3], 2); Serial.print("\n");
 
     //   Serial.print("biasx:");
     // Serial.print(imu.getBiasGyroX());

@@ -261,7 +261,7 @@ void i2cSetup() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   /* Startup animation */
   pinMode(LED_BUILTIN, HIGH);
 
@@ -552,10 +552,10 @@ void loop() {
     else
     {
       // /* Output motor speeds to ESCS */
-      m1_esc.speed(motor_one_speed);
-      m2_esc.speed(motor_two_speed);
-      m3_esc.speed(motor_three_speed);
-      m4_esc.speed(motor_four_speed);
+      // m1_esc.speed(motor_one_speed);
+      // m2_esc.speed(motor_two_speed);
+      // m3_esc.speed(motor_three_speed);
+      // m4_esc.speed(motor_four_speed);
     }
 
     prevControlTimer = currControlTimer;
