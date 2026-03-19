@@ -28,8 +28,8 @@ public:
 
     void UpdateEstimates(Vector3 pos, Vector3 vel, Quaternion attitude);
 
-    float PID(float err_, float prev_err_, float p_gain, float i_gain,
-        float prev_i_gain, float d_gain, float dt);
+    float PID(float setPnt, float prev_setpt, float err_, float prev_err_, 
+        float p_gain, float i_gain, float prev_i_gain, float d_gain, float dt);
 
     void resetPID();
 

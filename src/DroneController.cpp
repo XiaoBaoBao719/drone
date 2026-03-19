@@ -11,21 +11,26 @@ void DroneController::Reset() {
     resetPID();
 }
 
-float DroneController::PID(float err_, float prev_err_, float p_gain, float i_gain,
-            float prev_i_gain, float d_gain, float dt) {
+float DroneController::PID(float setpnt, float prev_setpnt, float err, float prev_err, 
+        float p_gain, float i_gain, float prev_i_gain, float i_saturation, float d_gain, float dt) {
 
-    float p_ = p_gain * err_;
-    float i_ = prev_i_gain + i_gain * ( ((err_ + prev_err_) * dt) / 2 );
-    float d_ = d_gain * ( (err_ - prev_err_) / dt );
-
-    float output = p_ + i_ + d_;
+    float p_ = p_gain * err;
     
-    /* clamp output for Integral anti-wind up*/
-    if (output >= pid_out_hi_limit) {
-        output = pid_out_hi_limit;
-    } else if (output < pid_out_lo_limit ) {
-        output = pid_out_lo_limit;    
+    /* Anti-windup logic*/
+    float i_dt = ( (err + prev_err) / 2. ) * dt;
+    /* Integral saturation control */
+    if (abs(prev_i_gain * i_dt) >= i_saturation) {
+        i_gain = 0.0; // if i_gain goes beyond saturation limits, reset gain to zero
+    } else {
+        i_gain = i_gain;
     }
+    /* Integral term */
+    float i_ = prev_i_gain + i_gain * i_dt;
+    /* Derivative kick compensation using derivative of set points */
+    float d_ = d_gain * ( setpnt - prev_setpnt) * (1 / dt); 
+
+    /* Calculate final PID output */
+    float output = p_ + i_ + d_;
 
     return output;
 }
