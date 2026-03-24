@@ -9,6 +9,12 @@
 
 // custom dependencies
 #include <MPU6050Plus.h>
+#include <ArduinoJson.h>  // For SITL JSON parsing
+
+/* BEGIN GLOBAL CONSTANTS */
+
+// SITL mode toggle
+#define SITL_MODE (false)  // Set to true for simulation testing
 
 /* BEGIN GLOBAL CONSTANTS */
 
@@ -115,6 +121,20 @@ ESC m2_esc(MOTOR_2_PWM, ESC_SPEED_MIN, ESC_SPEED_MAX, MIN_ARM_TIME);
 ESC m3_esc(MOTOR_3_PWM, ESC_SPEED_MIN, ESC_SPEED_MAX, MIN_ARM_TIME);
 ESC m4_esc(MOTOR_4_PWM, ESC_SPEED_MIN, ESC_SPEED_MAX, MIN_ARM_TIME);
 
+/* SITL serial interface */
+#if SITL_MODE
+StaticJsonDocument<256> imu_doc;
+HardwareSerial& sitl_serial = Serial1;  // Use Serial1 for SITL
+
+struct SITLImuData {
+    float accel[3];
+    float gyro[3];
+    float mag[3];
+} sitl_imu;
+
+uint16_t motor_pwm[4] = {1500, 1500, 1500, 1500};  // PWM values to send to simulator
+#endif
+
 /* Rate Mode flight control vars */
 
 float rateX, rateY, rateZ;
@@ -216,6 +236,39 @@ void resetPID(void) {
   prevIGainZ = 0.0;
 }
 
+#if SITL_MODE
+void setup_sitl_serial() {
+    sitl_serial.begin(115200);  // Match Python simulator
+}
+
+void read_sitl_imu() {
+    if (!sitl_serial.available()) return;
+    
+    // Read JSON from simulator
+    String json_str = sitl_serial.readStringUntil('\n');
+    DeserializationError error = deserializeJson(imu_doc, json_str);
+    
+    if (!error) {
+        // Parse IMU data
+        JsonArray accel = imu_doc["accel"];
+        JsonArray gyro = imu_doc["gyro"];
+        
+        sitl_imu.accel[0] = accel[0];
+        sitl_imu.accel[1] = accel[1];
+        sitl_imu.accel[2] = accel[2];
+        
+        sitl_imu.gyro[0] = gyro[0];
+        sitl_imu.gyro[1] = gyro[1];
+        sitl_imu.gyro[2] = gyro[2];
+    }
+}
+
+void write_sitl_pwm() {
+    // Send 4 PWM values (8 bytes: 4 uint16_t)
+    sitl_serial.write((byte*)motor_pwm, 8);
+}
+#endif
+
 void readReceiver(void) {
   /* read latest valid values from all channels */
 
@@ -262,6 +315,9 @@ void i2cSetup() {
 
 void setup() {
   Serial.begin(9600);
+#if SITL_MODE
+  setup_sitl_serial();
+#endif
   /* Startup animation */
   pinMode(LED_BUILTIN, HIGH);
 
@@ -421,12 +477,20 @@ void loop() {
   currImuTimer = millis();
   if ((currImuTimer - prevImuTimer) > IMU_SAMPLE_FREQ_MS)
   {
+#if SITL_MODE
+    read_sitl_imu();
+    // Use simulated IMU data
+    angleX = sitl_imu.gyro[0] * 180.0 / PI;  // Convert rad/s to deg/s
+    angleY = sitl_imu.gyro[1] * 180.0 / PI;
+    angleZ = sitl_imu.gyro[2] * 180.0 / PI;
+#else
     imu.updateRawMeasurements(); // read from IMU wrapper
     imu.updateEstimates();       // get attitude estimate
 
     angleX = imu.getAngleX();
     angleY = imu.getAngleY();
     angleZ = imu.getAngleZ();
+#endif
 
     #if DEBUG_ANGLE
       Serial.print(",angleX:");        Serial.print(angleX);       Serial.print(" ");
@@ -543,19 +607,35 @@ void loop() {
     /* Send the motor speed commands to individual ESCS */
     if (receiverValue[CH_THR - 1] < MIN_THROTTLE)
     {
+#if SITL_MODE
+      motor_pwm[0] = ESC_STOP;
+      motor_pwm[1] = ESC_STOP;
+      motor_pwm[2] = ESC_STOP;
+      motor_pwm[3] = ESC_STOP;
+      write_sitl_pwm();
+#else
       m1_esc.speed(ESC_STOP);
       m2_esc.speed(ESC_STOP);
       m3_esc.speed(ESC_STOP);
       m4_esc.speed(ESC_STOP);
+#endif
       resetPID();
     }
     else
     {
+#if SITL_MODE
+      motor_pwm[0] = (uint16_t)motor_one_speed;
+      motor_pwm[1] = (uint16_t)motor_two_speed;
+      motor_pwm[2] = (uint16_t)motor_three_speed;
+      motor_pwm[3] = (uint16_t)motor_four_speed;
+      write_sitl_pwm();
+#else
       // /* Output motor speeds to ESCS */
       // m1_esc.speed(motor_one_speed);
       // m2_esc.speed(motor_two_speed);
       // m3_esc.speed(motor_three_speed);
       // m4_esc.speed(motor_four_speed);
+#endif
     }
 
     prevControlTimer = currControlTimer;

@@ -1,4 +1,4 @@
-#include "DroneEKF.h"
+#include "EKF.h"
 
 // #include <BasicLinearAlgebra.h>
 
@@ -40,7 +40,7 @@ static inline Vector3 rotate_body_z_to_world(const double q[4], double z_accel) 
 /**
  * Drone EKF constructor
  */
-DroneEKF::DroneEKF(float accel_data[]) {
+EKF::EKF(float accel_data[]) {
     // initialize state and covariance variables
     state = Vector12.Fill(0);
     state(0) = 1.0; // initial quaternion w=1
@@ -54,7 +54,7 @@ DroneEKF::DroneEKF(float accel_data[]) {
 /**
  * Constructor
  */
-DroneEKF::DroneEKF(float accel_data[]) {
+EKF::EKF(float accel_data[]) {
     state = Vector12::Zero();
     state(6) = 0.0;  // roll
     state(7) = 0.0;  // pitch
@@ -76,7 +76,7 @@ DroneEKF::DroneEKF(float accel_data[]) {
 /**
  * Initialize EKF with initial state and covariance
  */
-void DroneEKF::initialize(const double initial_state[], const double initial_covariance[]) {
+void EKF::initialize(const double initial_state[], const double initial_covariance[]) {
     for (int i = 0; i < 12; ++i) {
         state(i) = initial_state[i];
     }
@@ -91,7 +91,7 @@ void DroneEKF::initialize(const double initial_state[], const double initial_cov
 /**
  * Main EKF estimation step
  */
-void DroneEKF::ekf_estimate(double prior_state[], double prior_covariance[], 
+void EKF::ekf_estimate(double prior_state[], double prior_covariance[], 
                              double input[], double measurement[], double dt) {
     // Load prior
     for (int i = 0; i < 12; ++i) {
@@ -127,7 +127,7 @@ void DroneEKF::ekf_estimate(double prior_state[], double prior_covariance[],
 /**
  * Predict step
  */
-void DroneEKF::predict(double prior[], double prior_covariance[]) {
+void EKF::predict(double prior[], double prior_covariance[]) {
     (void)prior; (void)prior_covariance;
 }
 
@@ -135,7 +135,7 @@ void DroneEKF::predict(double prior[], double prior_covariance[]) {
  * Predict state using motion model
  * input: [thrust1, thrust2, thrust3, thrust4]
  */
-void DroneEKF::pred_state(double state_arr[], double input[], double dt) {
+void EKF::pred_state(double state_arr[], double input[], double dt) {
     const double mass = 1.2;  // kg
     const double g = 9.81;    // m/s^2
 
@@ -209,7 +209,7 @@ void DroneEKF::pred_state(double state_arr[], double input[], double dt) {
 /**
  * Compute Jacobian of motion model
  */
-void DroneEKF::jacob_F(double state_arr[], double input[], double dt) {
+void EKF::jacob_F(double state_arr[], double input[], double dt) {
     (void)state_arr; (void)input; (void)dt;
     // Simplified: F is approximately identity for small dt
 }
@@ -217,7 +217,7 @@ void DroneEKF::jacob_F(double state_arr[], double input[], double dt) {
 /**
  * Update covariance after prediction
  */
-void DroneEKF::pred_state_cov(double F[], double process_noise_arr[], double dt) {
+void EKF::pred_state_cov(double F[], double process_noise_arr[], double dt) {
     // Simplified covariance update: P = P + Q*dt
     // For full EKF: P = F*P*F^T + Q
     
@@ -231,7 +231,7 @@ void DroneEKF::pred_state_cov(double F[], double process_noise_arr[], double dt)
  * Update step with measurements
  * measurement: [accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, cam_x, cam_y, tof_z]
  */
-void DroneEKF::update(double prediction[], double measurement[], double measurement_noise_arr[]) {
+void EKF::update(double prediction[], double measurement[], double measurement_noise_arr[]) {
     if (!measurement) return;
 
     // Measurement vector
@@ -322,7 +322,7 @@ void DroneEKF::update(double prediction[], double measurement[], double measurem
 /**
  * Compute innovation
  */
-void DroneEKF::innovation(double measurement[], double predicted_measurement[]) {
+void EKF::innovation(double measurement[], double predicted_measurement[]) {
     if (!measurement || !predicted_measurement) return;
 
     for (int i = 0; i < 9; ++i) {
@@ -333,28 +333,28 @@ void DroneEKF::innovation(double measurement[], double predicted_measurement[]) 
 /**
  * Compute innovation covariance
  */
-void DroneEKF::innovation_cov(double H[], double predicted_covariance[], double measurement_noise_arr[]) {
+void EKF::innovation_cov(double H[], double predicted_covariance[], double measurement_noise_arr[]) {
     (void)H; (void)predicted_covariance; (void)measurement_noise_arr;
 }
 
 /**
  * Compute observation Jacobian
  */
-void DroneEKF::jacobian_H(double measurement[], double dt) {
+void EKF::jacobian_H(double measurement[], double dt) {
     (void)measurement; (void)dt;
 }
 
 /**
  * Compute Kalman gain
  */
-void DroneEKF::kalman_gain(double prediction_covariance[], double H[], double S[]) {
+void EKF::kalman_gain(double prediction_covariance[], double H[], double S[]) {
     (void)prediction_covariance; (void)H; (void)S;
 }
 
 /**
  * Update state estimate
  */
-void DroneEKF::update_state(double predicted_state[], double K, double y, double measurement_covariance[]) {
+void EKF::update_state(double predicted_state[], double K, double y, double measurement_covariance[]) {
     (void)K; (void)y; (void)measurement_covariance;
     if (predicted_state) {
         for (int i = 0; i < 12; ++i) {
@@ -366,6 +366,6 @@ void DroneEKF::update_state(double predicted_state[], double K, double y, double
 /**
  * Update state covariance
  */
-void DroneEKF::update_state_covariance(double measurement_covariance[], double prior_state_covariance[], double K) {
+void EKF::update_state_covariance(double measurement_covariance[], double prior_state_covariance[], double K) {
     (void)measurement_covariance; (void)prior_state_covariance; (void)K;
 }

@@ -25,18 +25,18 @@ typedef BLA::Matrix<12>     Vector12;
 typedef BLA::Matrix<4>      Quaternion;
 // This class makes use of quaternions, NOT Euler angles for state
 
-class DroneEKF
+class EKF
 {
 public:
     /**
      * @brief Constructor for the extended kalman filter
      */
-    DroneEKF(float accel_data[]);
+    EKF(float accel_data[]);
 
     /**
      * @brief Destructor
      */
-    ~DroneEKF() = default;
+    ~EKF() = default;
 
     /**
      * @brief Initializes the EKF with an initial state and uncertainty

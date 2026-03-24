@@ -1,17 +1,17 @@
-#include "DroneController.h"
+#include "PIDController.h"
 
 
-void DroneController::Init() {
+void PIDController::Init() {
     resetPID();
 
 }
 
 
-void DroneController::Reset() {
+void PIDController::Reset() {
     resetPID();
 }
 
-float DroneController::PID(float setpnt, float prev_setpnt, float err, float prev_err, 
+float PIDController::PID(float setpnt, float prev_setpnt, float err, float prev_err, 
         float p_gain, float i_gain, float prev_i_gain, float i_saturation, float d_gain, float dt) {
 
     float p_ = p_gain * err;
@@ -35,7 +35,7 @@ float DroneController::PID(float setpnt, float prev_setpnt, float err, float pre
     return output;
 }
 
-void DroneController::resetPID() {
+void PIDController::resetPID() {
 
     prevErrorRateX = 0.0;
     prevErrorRateY = 0.0;

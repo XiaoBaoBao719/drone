@@ -7,12 +7,12 @@
 #include "MPU6050Plus.h"
 #include "Sensor_Fusion/DroneEKF.h"
 
-class DroneController 
+class PIDController 
 {
 
 public:
 
-    DroneController(std::string name) {
+    PIDController(std::string name) {
         
         _name = name;
         
@@ -20,7 +20,7 @@ public:
 
     };
 
-    ~DroneController();
+    ~PIDController();
 
     void Init();
 
