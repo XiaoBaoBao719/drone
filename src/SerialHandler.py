@@ -3,6 +3,7 @@ import serial.tools.list_ports
 import time
 import sys
 import argparse
+from typing import Optional, List
 
 class SerialHandler():
     PORT_DEFAULT = "/dev/ttyAM0"
@@ -55,11 +56,11 @@ class SerialHandler():
             self.serial_ = -1
 
         ### Finally, if we have a successful connection, toggle flag ###
-        if(self.serial_):
-            self.connected = False
+        if(self.serial_ != -1 ):
+            self.connected = True
         
         
-    def get_port_name(self, ports) -> str | None:
+    def get_port_name(self, ports) -> Optional[str]:
         print("Avaiable ports:")
         for i, p in enumerate(ports):
             print(f" [{i}] {p}")
@@ -102,19 +103,57 @@ class SerialHandler():
     def print_serial_ports(self):
         """ Print a sorted list of all available serial port names."""
         print(f"+++ DISPLAYING SERIAL PORTS LIST +++\n")
-        if self.ports_list:
-            print("Avaiable serial ports")
-            for p in self.ports_list:
+        ports = self.list_serial_ports()
+        if ports:
+            print("Available serial ports")
+            for p in ports:
                 print(f" {p}")
         else:
             print("No serial ports found.")
 
-    def list_serial_ports(self) -> list[str]:
+    def list_serial_ports(self) -> List[str]:
         """ Return a sorted list of available serial port names. """
         return sorted(p.device for p in serial.tools.list_ports.comports())
 
-    def auto_detect_port(self) -> str | None:
+    def auto_detect_port(self) -> Optional[str]:
         """Return the first available serial port, or None if none found."""
         ports = self.list_serial_ports()
         return ports[0] if ports else None
 
+if __name__ == "__main__":
+    # Test script for SerialHandler class
+    
+    print("=== Testing SerialHandler Class ===\n")
+    
+    # Test 1: List available serial ports
+    print("Test 1: Listing available serial ports")
+    handler = SerialHandler()
+    ports = handler.list_serial_ports()
+    print(f"Available ports: {ports}")
+    handler.print_serial_ports()
+    print()
+    
+    # Test 2: Auto-detect port
+    print("Test 2: Auto-detecting port")
+    detected_port = handler.auto_detect_port()
+    if detected_port:
+        print(f"Auto-detected port: {detected_port}")
+    else:
+        print("No ports auto-detected")
+    print()
+    
+    # Test 3: Attempt connection (this will try to connect if ports are available)
+    print("Test 3: Attempting connection")
+    if ports:
+        # Create a new handler with a specific port for testing
+        test_handler = SerialHandler(port=ports[0], baud_rate=9600)
+        if test_handler.connected:
+            print("Successfully connected!")
+            # Note: In a real test, you might want to send/receive data here
+            # For now, just check connection status
+        else:
+            print("Connection failed (expected if no hardware connected)")
+    else:
+        print("No ports available for connection test")
+    
+    print("\n=== Test Complete ===")
