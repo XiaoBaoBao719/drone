@@ -27,16 +27,16 @@ MPU6050Plus imu;
 EulerRPY rpy;
 
 // const float IMU_SAMPLE_FREQ_MS = 1000;  // millisecs
-const float IMU_SAMPLE_FREQ = 0.01;    // time interval between imu points (secs)
+float IMU_SAMPLE_FREQ = 0.05;    // time interval between imu points (secs)
 
 void i2cSetup() {
   // join I2C bus (I2Cdev library doesn't do this automatically)
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
   Wire1.begin();
-  Wire1.setClock(400000);
+  Wire1.setClock(200000);
   // TWBR = 24;  // 400kHz I2C clock (200kHz if CPU is 8MHz)
 #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
-  Fastwire::setup(400, true);
+  Fastwire::setup(200, true);
 #endif
 }
 

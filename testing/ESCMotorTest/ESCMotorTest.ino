@@ -11,7 +11,7 @@
 int motorPins[] = { 5, 6, 9, 10 };
 
 #define SPEED_MIN (1000)
-#define SPEED_MAX (1500)
+#define SPEED_MAX (1800)
 #define ESC_STOP (500)
 #define MIN_ARM_TIME (500)
 
@@ -27,7 +27,7 @@ int oESC;
 // motor input values
 float motor_one_speed, motor_two_speed, motor_three_speed, motor_four_speed;
 #define MIN_THROTTLE (1180)
-#define MAX_THROTTLE (1600)
+#define MAX_THROTTLE (1800)
 #define MOTOR_CONSTANT (5)  // (7)
 bool stopMotors = false;
 
@@ -53,29 +53,45 @@ void setup() {
   Serial.begin(115200);
   /* Startup animation */
   pinMode(LED_BUILTIN, HIGH);
+  Serial.println("STARTING MOTOR CALIBRATION IN 10 SECONDS. ENSURE PROPELLERS ARE NOT ON.");
 
+  int countdown = 20;
+  while (countdown >= 0) {
+    Serial.print("STARTING MOTOR CALIBRATION IN "); Serial.print(countdown); Serial.print(" SECONDS");
+    Serial.println("\tENSURE PROPELLERS ARE NOT ON.");
+    delay(1000);
+    countdown -= 1;
+  }
   /* Motor setup */
   Serial.println(F("Arming ESCS..."));
   delay(2000);
-  m1_esc.arm();
+  // m1_esc.arm();
+  m1_esc.calib();
   m1_esc.speed(SPEED_MIN);
   Serial.println("ESC 1 armed.");
   delay(1000);
-  m2_esc.arm();
+  // m2_esc.arm();
+  m2_esc.calib();
   m2_esc.speed(SPEED_MIN);
   Serial.println("ESC 2 armed.");
   delay(1000);
-  m3_esc.arm();
+  // m3_esc.arm();
+  m3_esc.calib();
   m3_esc.speed(SPEED_MIN);
   Serial.println("ESC 3 armed.");
   delay(1000);
-  m4_esc.arm();
+  // m4_esc.arm();
+  m4_esc.calib();
   m4_esc.speed(SPEED_MIN);
   Serial.println("ESC 4 armed.");
 
   delay(5000);
 
   Serial.println("+++Running ESC test!+++");
+  m1_esc.stop();
+  m2_esc.stop();
+  m3_esc.stop();
+  m4_esc.stop();
 
   int escNum = sizeof(motorESCs) / sizeof(motorESCs[0]);
 
@@ -96,75 +112,75 @@ void setup() {
   //         delay(10);                                            // waits 10ms for the ESC to reach speed
   //     }
   // }
+  // /*  MOTOR 1  */
 
-  /*  MOTOR 1  */
+  // Serial.print("PWM M1 on Pin: ");
+  // Serial.println(MOTOR_1_PWM);
 
-  Serial.print("PWM M1 on Pin: ");
-  Serial.println(MOTOR_1_PWM);
+  // for (oESC = SPEED_MIN; oESC <= SPEED_MAX; oESC += 1) {  // goes from 1000 microseconds to 2000 microseconds
+  //   m1_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
+  //   delay(10);                                            // waits 10ms for the ESC to reach speed
+  // }
 
-  for (oESC = SPEED_MIN; oESC <= SPEED_MAX; oESC += 1) {  // goes from 1000 microseconds to 2000 microseconds
-    m1_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
-    delay(10);                                            // waits 10ms for the ESC to reach speed
-  }
+  // delay(1000);
 
-  delay(1000);
+  // for (oESC = SPEED_MAX; oESC >= SPEED_MIN; oESC -= 1) {  // goes from 2000 microseconds to 1000 microseconds
+  //   m1_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
+  //   delay(10);                                            // waits 10ms for the ESC to reach speed
+  // }
 
-  for (oESC = SPEED_MAX; oESC >= SPEED_MIN; oESC -= 1) {  // goes from 2000 microseconds to 1000 microseconds
-    m1_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
-    delay(10);                                            // waits 10ms for the ESC to reach speed
-  }
+  // /*  MOTOR 2  */
+  // Serial.print("PWM M2 on Pin: ");
+  // Serial.println(MOTOR_2_PWM);
 
-  /*  MOTOR 2  */
-  Serial.print("PWM M2 on Pin: ");
-  Serial.println(MOTOR_2_PWM);
+  // for (oESC = SPEED_MIN; oESC <= SPEED_MAX; oESC += 1) {  // goes from 1000 microseconds to 2000 microseconds
+  //   m2_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
+  //   delay(10);                                            // waits 10ms for the ESC to reach speed
+  // }
 
-  for (oESC = SPEED_MIN; oESC <= SPEED_MAX; oESC += 1) {  // goes from 1000 microseconds to 2000 microseconds
-    m2_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
-    delay(10);                                            // waits 10ms for the ESC to reach speed
-  }
+  // delay(1000);
 
-  delay(1000);
+  // for (oESC = SPEED_MAX; oESC >= SPEED_MIN; oESC -= 1) {  // goes from 2000 microseconds to 1000 microseconds
+  //   m2_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
+  //   delay(10);                                            // waits 10ms for the ESC to reach speed
+  // }
 
-  for (oESC = SPEED_MAX; oESC >= SPEED_MIN; oESC -= 1) {  // goes from 2000 microseconds to 1000 microseconds
-    m2_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
-    delay(10);                                            // waits 10ms for the ESC to reach speed
-  }
+  // /*  MOTOR 3  */
+  // Serial.print("PWM M3 on Pin: ");
+  // Serial.println(MOTOR_3_PWM);
 
-  /*  MOTOR 3  */
-  Serial.print("PWM M3 on Pin: ");
-  Serial.println(MOTOR_3_PWM);
+  // for (oESC = SPEED_MIN; oESC <= SPEED_MAX; oESC += 1) {  // goes from 1000 microseconds to 2000 microseconds
+  //   m3_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
+  //   delay(10);                                            // waits 10ms for the ESC to reach speed
+  // }
 
-  for (oESC = SPEED_MIN; oESC <= SPEED_MAX; oESC += 1) {  // goes from 1000 microseconds to 2000 microseconds
-    m3_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
-    delay(10);                                            // waits 10ms for the ESC to reach speed
-  }
+  // delay(1000);
 
-  delay(1000);
+  // for (oESC = SPEED_MAX; oESC >= SPEED_MIN; oESC -= 1) {  // goes from 2000 microseconds to 1000 microseconds
+  //   m3_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
+  //   delay(10);                                            // waits 10ms for the ESC to reach speed
+  // }
 
-  for (oESC = SPEED_MAX; oESC >= SPEED_MIN; oESC -= 1) {  // goes from 2000 microseconds to 1000 microseconds
-    m3_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
-    delay(10);                                            // waits 10ms for the ESC to reach speed
-  }
+  // delay(1000);
 
-  delay(1000);
+  // /* MOTOR 4  */
+  // Serial.print("PWM M4 on Pin: ");
+  // Serial.println(MOTOR_4_PWM);
 
-  /* MOTOR 4  */
-  Serial.print("PWM M4 on Pin: ");
-  Serial.println(MOTOR_4_PWM);
+  // for (oESC = SPEED_MIN; oESC <= SPEED_MAX; oESC += 1) {  // goes from 1000 microseconds to 2000 microseconds
+  //   m4_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
+  //   delay(10);                                            // waits 10ms for the ESC to reach speed
+  // }
 
-  for (oESC = SPEED_MIN; oESC <= SPEED_MAX; oESC += 1) {  // goes from 1000 microseconds to 2000 microseconds
-    m4_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
-    delay(10);                                            // waits 10ms for the ESC to reach speed
-  }
+  // delay(1000);
 
-  delay(1000);
+  // for (oESC = SPEED_MAX; oESC >= SPEED_MIN; oESC -= 1) {  // goes from 2000 microseconds to 1000 microseconds
+  //   m4_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
+  //   delay(10);                                            // waits 10ms for the ESC to reach speed
+  // }
 
-  for (oESC = SPEED_MAX; oESC >= SPEED_MIN; oESC -= 1) {  // goes from 2000 microseconds to 1000 microseconds
-    m4_esc.speed(oESC);                                   // tell ESC to go to the oESC speed value
-    delay(10);                                            // waits 10ms for the ESC to reach speed
-  }
+  // Serial.println("+++Finished ESC test!+++");
 
-  Serial.println("+++Finished ESC test!+++");
 }
 
 void loop() {
