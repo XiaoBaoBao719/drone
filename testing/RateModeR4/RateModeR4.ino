@@ -5,8 +5,8 @@
 // #endif
 #include "ESC.h"
 #include "Wire.h"
-#include "I2Cdev.h"
-#include "MPU6050.h"
+// #include "I2Cdev.h"
+// #include "MPU6050.h"
 // #include "MPU6050_6Axis_MotionApps20.h"
 // #include "PPMReader.h"
 #include "ppm.h"
@@ -43,8 +43,9 @@ bool blink_state = false;
 // make an instance of the library:
 // ArduinoLEDMatrix matrix;
 
-MPU6050 mpu(0x68, &Wire1); // Set i2c addr to 0x68 (default) and use Qwiic connector (Wire1)
+// MPU6050 mpu(0x68, &Wire1); // Set i2c addr to 0x68 (default) and use Qwiic connector (Wire1)
 // MPU6050 mpu;          // Used for initiating a connection with the MPU drivers
+#define MPU_ADDR (0x68) 
 MPU6050Plus imu; // Wrapper that converts raw IMU values into filtered angle measurements
 EulerRPY rpy;    // IMU converted values expressed in an Euler transform
 
@@ -159,9 +160,6 @@ static constexpr float YAW_I_LIMIT    = 200.0f;
 
 static constexpr float PID_LIMIT  = 300.0f;
 
-// motor input values
-float motor_one_speed, motor_two_speed, motor_three_speed, motor_four_speed;
-
 #define MIN_THROTTLE (1050) 
 #define MAX_THROTTLE (ESC_SPEED_MAX)
 #define MOTOR_CONSTANT (1.025) // (7)
@@ -248,19 +246,40 @@ static MotorOutputs motors = {{ static_cast<float>(ESC_SPEED_MIN)
                                 static_cast<float>(ESC_SPEED_MIN)
                                 static_cast<float>(ESC_SPEED_MIN) }};
 
-static void mixMotors(float throttle, float rollOut, 
+/**
+ * @brief Convert PID outputs into motor commands based on quadcopter dynamics model.
+ * Assumes NED (North-East-Down) coordinate convention:
+ * - X-axis: North (forward/backward)
+ * - Y-axis: East (right/left)
+ * - Z-axis: Down (upward thrust)
+ *
+ * Quadcopter motor layout (X configuration):
+ * - M1: Front-Right (+X, +Y, CCW)
+ * - M2: Back-Left (-X, -Y, CW)
+ * - M3: Front-Left (+X, -Y, CCW)
+ * - M4: Back-Right (-X, +Y, CW)
+ *
+ * Motor mixing formula (as implemented in code):
+ * - Motor 1 (Front-Right, CCW): Throttle - Roll + Pitch + Yaw
+ * - Motor 2 (Back-Left, CW):    Throttle - Roll - Pitch - Yaw
+ * - Motor 3 (Front-Left, CCW):  Throttle + Roll - Pitch + Yaw
+ * - Motor 4 (Back-Right, CW):   Throttle + Roll + Pitch - Yaw
+ */
+
+static void mixMotors(float throttle, float rollOut,
                       float pitchOut, float yawOut)
 {
-    motors.cmd[0] = M1_CONST * ( throttle - rollOut + pitchOut + yawOut );
-    motors.cmd[1] = M2_CONST * ( throttle - rollOut - pitchOut - yawOut );
-    motors.cmd[2] = M3_CONST * ( throttle + rollOut - pitchOut + yawOut );
-    motors.cmd[3] = M4_CONST * ( throttle + rollOut + pitchOut - yawOut );
+  motors.cmd[0] = M1_CONST * (throttle - rollOut + pitchOut + yawOut);
+  motors.cmd[1] = M2_CONST * (throttle - rollOut - pitchOut - yawOut);
+  motors.cmd[2] = M3_CONST * (throttle + rollOut - pitchOut + yawOut);
+  motors.cmd[3] = M4_CONST * (throttle + rollOut + pitchOut - yawOut);
 
-    for (int i = 0; i < motors.cmd.length(); i++) {
-        motors.cmd[i] = constrain(motors.cmd[i],
-                                  static_cast<float>(MIN_THROTTLE),
-                                  static_cast<float>(ESC_SPEED_MAX) );
-    }
+  for (int i = 0; i < motors.cmd.length(); i++)
+  {
+    motors.cmd[i] = constrain(motors.cmd[i],
+                              static_cast<float>(MIN_THROTTLE),
+                              static_cast<float>(ESC_SPEED_MAX));
+  }
 }
 
 #if SITL_MODE
@@ -414,6 +433,152 @@ static float scaleRcToAngleRate(int32_t rawUs, float maxRate)
 // #endif
 // }
 
+// ===============================================================
+// ===                Global State Variables                   ===
+// ===============================================================
+
+bool mpuIntStatus = true;
+
+float angleX = 0.0;
+float angleY = 0.0;
+float angleZ = 0.0;
+
+float angleRateX = 0.0;
+float angleRateY = 0.0;
+float angleRateZ = 0.0;
+
+// Apply filtering to the input joystick values
+#define MAN_LP_FILTER_DEGREE (8)
+float inputThrottleHist[MAN_LP_FILTER_DEGREE] = {0.0};
+float inputXHist[MAN_LP_FILTER_DEGREE] = {0.0};
+float inputYHist[MAN_LP_FILTER_DEGREE] = {0.0};
+float inputZHist[MAN_LP_FILTER_DEGREE] = {0.0};
+short lpFilterIndex = 0;
+
+float filtInputThrottle = 0.0;
+float filtInputX = 0.0;
+float filtInputY = 0.0;
+float filtInputZ = 0.0;
+
+
+void updateSensors() {  
+#if SITL_MODE
+    read_sitl_imu();
+    // Use simulated IMU data
+    angleX = sitl_imu.gyro[0] * 180.0 / PI;  // Convert rad/s to deg/s
+    angleY = sitl_imu.gyro[1] * 180.0 / PI;
+    angleZ = sitl_imu.gyro[2] * 180.0 / PI;
+#else
+
+    imu.updateRawMeasurements(); // read from IMU wrapper
+    imu.complementaryFilter();       // get attitude estimate
+
+    angleX = imu.getAngleX();
+    angleY = imu.getAngleY();
+    angleZ = imu.getAngleZ();
+
+    angleRateX = imu.getGyroX();
+    angleRateY = imu.getGyroY();
+    angleRateZ = imu.getGyroZ();
+
+#endif
+
+#if DEBUG_ANGLE
+    Serial.print(",angleX:");        Serial.print(angleX);       Serial.print(" ");
+    Serial.print(",angleY:");            Serial.print(angleY);           Serial.print(" ");
+    Serial.print(",angleZ:");           Serial.print(angleZ);          Serial.print(" ");
+    Serial.println();
+#endif
+}
+
+void updateControllers() {
+  float pidRollRate = pid(rcRoll, angleRateX, ROLL_KP, ROLL_KI, ROLL_KD,
+                          CONTROL_LOOP_TIME_SEC, ROLL_I_LIMIT, PID_LIMIT, rollRatePID);
+
+  float pidPitchRate = pid(rcPitch, angleRateY, PITCH_KP, PITCH_KI, PITCH_KI = PITCH_KD,
+                           CONTROL_LOOP_TIME_SEC, PITCH_I_LIMIT, PID_LIMIT, pitchRatePID);
+
+  float pidYawRate = pid(rcYaw, angleRateZ, YAW_KP, YAW_KI, YAW_KD,
+                         CONTROL_LOOP_TIME_SEC, YAW_I_LIMIT, PID_LIMIT, pitchRatePID);
+  // Serial.println("thr: " + String(input_throttle) + "\tpidX: " + String(pid_out_x) + "\tpidY: " + String(pid_out_y) + "\tpidZ: " + String(pid_out_z));
+  // Serial.println();
+
+#if DEBUG_PID
+  Serial.print("constant:");    Serial.print(filtInputThrottle);
+  Serial.print(",pid_out_x:");  Serial.print(pid_out_x.total);
+  Serial.print(",pid_out_y:");  Serial.print(pid_out_y.total);
+  Serial.print(",pid_out_z:");  Serial.print(pid_out_z.total);
+  Serial.println();
+#endif
+}
+
+void updateMotors() {
+    /* Constrain max throttle input */
+    filtInputThrottle = constrain(filtInputThrottle, MIN_THROTTLE, MAX_THROTTLE);
+    /* Convert PID outputs into motor commands */
+    mixMotors(filtInputThrottle, pidRollRate, pidPitchRate, pidYawRate);
+
+#if DEBUG_MOTOR
+    Serial.print(",m1:");
+    Serial.print(motors.cmd[0]);
+    Serial.print(",m2:");
+    Serial.print(motors.cmd[1]);
+    Serial.print(",m3:");
+    Serial.print(motors.cmd[2]);
+    Serial.print(",m4:");
+    Serial.print(motors.cmd[3]);
+    Serial.println();
+#endif
+
+    /* Send the motor speed commands to individual ESCS */
+    if (receiverValueRaw[CH_THR - 1] < MIN_THROTTLE)
+    {
+#if SITL_MODE
+      motor_pwm[0] = ESC_STOP;
+      motor_pwm[1] = ESC_STOP;
+      motor_pwm[2] = ESC_STOP;
+      motor_pwm[3] = ESC_STOP;
+      write_sitl_pwm();
+#else
+      /* Command STOP to ESCs! */
+      m1_esc.speed(ESC_STOP);
+      m2_esc.speed(ESC_STOP);
+      m3_esc.speed(ESC_STOP);
+      m4_esc.speed(ESC_STOP);
+#endif
+      resetPID();
+    }
+    else
+    {
+#if SITL_MODE
+      motor_pwm[0] = (uint16_t)motors.cmd[0];
+      motor_pwm[1] = (uint16_t)motors.cmd[1];
+      motor_pwm[2] = (uint16_t)motors.cmd[2];
+      motor_pwm[3] = (uint16_t)motors.cmd[3];
+      write_sitl_pwm();
+#else
+      /* Command motor speeds to ESCS! */
+      m1_esc.speed(motors.cmd[0]);
+      m2_esc.speed(motors.cmd[1]);
+      m3_esc.speed(motors.cmd[2]);
+      m4_esc.speed(motors.cmd[3]);
+#endif
+    }
+}
+
+void updateRC() {
+  readReceiver(); // read PPM from the RC remote
+
+    /* String debug statements */
+    #if DEBUG_INPUT
+      Serial.print(",Throttle:");        Serial.print(rcThrottle);       Serial.print(" ");
+      Serial.print(",Roll:");            Serial.print(rcRoll);           Serial.print(" ");
+      Serial.print(",Pitch:");           Serial.print(rcPitch);          Serial.print(" ");
+      Serial.print(",Yaw:");             Serial.print(rcYaw);            Serial.print(" ");
+      Serial.println();
+    #endif
+}
+
 void setup() {
   Serial.begin(9600);
 #if SITL_MODE
@@ -457,21 +622,17 @@ void setup() {
   }
 
   /* Create IMU data wrapper */
-  imu.initialize(&mpu, IMU_SAMPLE_FREQ_SEC);
+  imu.initialize(MPU_ADDR, &Wire1, IMU_SAMPLE_FREQ_SEC);
   Serial.println("IMU initialized");
 
   // Calibrate the IMU accel/gyro offsets
-  // imu.calcOffsets();
-  mpu.CalibrateAccel(20);
-  mpu.CalibrateGyro(20);
+  imu.calibrateIMU();
 
   /* RC PPM Receiver Setup */
   ppm.begin(PPM_INTERRUPT, false);
+  readReceiver();
 
   /* Safety check: if throttle above threshold do not advance */
-
-  readReceiver();
-  
   uint32_t init_throttle = 1100;
 
   while (init_throttle >= 1100) {
@@ -482,34 +643,8 @@ void setup() {
   }
   Serial.println(F("RC reciever ready!"));
 
-  // Start the RTC
-
-
-  // loopTimer = micros();
+  Serial.println(F("Flight Controller Setup Complete!"));
 }
-
-bool mpuIntStatus = true;
-
-float angleX = 0.0;
-float angleY = 0.0;
-float angleZ = 0.0;
-
-float angleRateX = 0.0;
-float angleRateY = 0.0;
-float angleRateZ = 0.0;
-
-// Apply filtering to the input joystick values
-#define MAN_LP_FILTER_DEGREE (8)
-float inputThrottleHist[MAN_LP_FILTER_DEGREE] = {0.0};
-float inputXHist[MAN_LP_FILTER_DEGREE] = {0.0};
-float inputYHist[MAN_LP_FILTER_DEGREE] = {0.0};
-float inputZHist[MAN_LP_FILTER_DEGREE] = {0.0};
-short lpFilterIndex = 0;
-
-float filtInputThrottle = 0.0;
-float filtInputX = 0.0;
-float filtInputY = 0.0;
-float filtInputZ = 0.0;
 
 void loop() {
 
@@ -517,50 +652,7 @@ void loop() {
   currRcRecTimer = millis();
   if ((currRcRecTimer - prevRcRecTimer) > RCREC_FREQ_MS)
   {
-    readReceiver(); // read PPM from the RC remote
-
-
-    // Calculate filtered input joystick values as the average of
-    // the new reading and the last LP_FILTER_DEGREE filtered readings
-    // float _filtInputThrottle = input_throttle;
-    // float _filtInputX = inputX;
-    // float _filtInputY = inputY;
-    // float _filtInputZ = inputZ;
-    // for (int i = 0; i < MAN_LP_FILTER_DEGREE; i++)
-    // {
-    //   _filtInputThrottle += inputThrottleHist[i];
-    //   _filtInputX += inputXHist[i];
-    //   _filtInputY += inputYHist[i];
-    //   _filtInputZ += inputZHist[i];
-    // }
-
-    // filtInputThrottle = _filtInputThrottle / (MAN_LP_FILTER_DEGREE + 1);
-    // filtInputX = _filtInputX / (MAN_LP_FILTER_DEGREE + 1);
-    // filtInputY = _filtInputY / (MAN_LP_FILTER_DEGREE + 1);
-    // filtInputZ = _filtInputZ / (MAN_LP_FILTER_DEGREE + 1);
-
-    // // Update the history arrays with the new filtered value
-    // inputThrottleHist[lpFilterIndex] = filtInputThrottle;
-    // inputXHist[lpFilterIndex] = filtInputX;
-    // inputYHist[lpFilterIndex] = filtInputY;
-    // inputZHist[lpFilterIndex] = filtInputZ;
-
-    // // make the history buffers act as ring buffers
-    // lpFilterIndex++;
-    // if (lpFilterIndex == MAN_LP_FILTER_DEGREE)
-    // {
-    //   lpFilterIndex = 0;
-    // }
-
-    /* String debug statements */
-    #if DEBUG_INPUT
-      Serial.print(",Throttle:");        Serial.print(rcThrottle);       Serial.print(" ");
-      Serial.print(",Roll:");            Serial.print(rcRoll);           Serial.print(" ");
-      Serial.print(",Pitch:");           Serial.print(rcPitch);          Serial.print(" ");
-      Serial.print(",Yaw:");             Serial.print(rcYaw);            Serial.print(" ");
-      Serial.println();
-    #endif
-
+    updateRC();
     prevRcRecTimer = currRcRecTimer;
   }
 
@@ -568,138 +660,18 @@ void loop() {
   currImuTimer = millis();
   if ((currImuTimer - prevImuTimer) > IMU_SAMPLE_FREQ_MS)
   {
-#if SITL_MODE
-    read_sitl_imu();
-    // Use simulated IMU data
-    angleX = sitl_imu.gyro[0] * 180.0 / PI;  // Convert rad/s to deg/s
-    angleY = sitl_imu.gyro[1] * 180.0 / PI;
-    angleZ = sitl_imu.gyro[2] * 180.0 / PI;
-#else
-    imu.updateRawMeasurements(); // read from IMU wrapper
-    imu.complementaryFilter();       // get attitude estimate
-
-    angleX = imu.getAngleX();
-    angleY = imu.getAngleY();
-    angleZ = imu.getAngleZ();
-
-    angleRateX = imu.getGyroX();
-    angleRateY = imu.getGyroY();
-    angleRateZ = imu.getGyroZ();
-#endif
-
-    #if DEBUG_ANGLE
-      Serial.print(",angleX:");        Serial.print(angleX);       Serial.print(" ");
-      Serial.print(",angleY:");            Serial.print(angleY);           Serial.print(" ");
-      Serial.print(",angleZ:");           Serial.print(angleZ);          Serial.print(" ");
-      Serial.println();
-    #endif
-
+    updateSensors();
     prevImuTimer = currImuTimer; // update prev timer
   }
 
 
-  /* Update the control loop at a rate of 500 Hz */
+  /* Update the control loop and motors at a rate of 500 Hz */
   currControlTimer = millis();
   if ((currControlTimer - prevControlTimer) > CONTROL_LOOP_TIME_MS)
   {
-    /* Calculate PID outputs */
-    // float pidRollRate = pid(filtInputX, prev_setptRateX, errorRateX, prevErrorRateX,
-    //                         PGainX,
-    //                         IGainX, prevIGainX,
-    //                         DGainX);    
-// float pidPitchRate = pid(filtInputY, prev_setptRateY, errorRateY, prevErrorRateY,
-// PGainY,
-// IGainY, prevIGainY,
-// DGainY);
-// float pidYawRate = pid(filtInputZ, prev_setptRateZ, errorRateZ, prevErrorRateZ,
-// PGainZ,
-// IGainZ, prevIGainZ,
-// DGainZ);
-    float pidRollRate   = pid(rcRoll, angleRateX, ROLL_KP, ROLL_KI, ROLL_KD, 
-                                CONTROL_LOOP_TIME_SEC, ROLL_I_LIMIT, PID_LIMIT, rollRatePID);
+    updateControllers();
     
-    float pidPitchRate  = pid(rcPitch, angleRateY, PITCH_KP, PITCH_KI, PITCH_KI=PITCH_KD,
-                                CONTROL_LOOP_TIME_SEC, PITCH_I_LIMIT, PID_LIMIT, pitchRatePID);
-
-    float pidYawRate  = pid(rcYaw, angleRateZ, YAW_KP, YAW_KI, YAW_KD,
-                                CONTROL_LOOP_TIME_SEC, YAW_I_LIMIT, PID_LIMIT, pitchRatePID);
-    // Serial.println("thr: " + String(input_throttle) + "\tpidX: " + String(pid_out_x) + "\tpidY: " + String(pid_out_y) + "\tpidZ: " + String(pid_out_z));
-    // Serial.println();
-
-#if DEBUG_PID
-  Serial.print("constant:");
-  Serial.print(filtInputThrottle);
-  Serial.print(",pid_out_x:");
-  Serial.print(pid_out_x.total);
-  Serial.print(",pid_out_y:");
-  Serial.print(pid_out_y.total);
-  Serial.print(",pid_out_z:");
-  Serial.print(pid_out_z.total);
-  Serial.println();
-#endif
-
-    /* Constrain max throttle input */
-    filtInputThrottle = constrain(filtInputThrottle, MIN_THROTTLE, MAX_THROTTLE);
-
-    // /* Convert PID outputs into motor commands based on quadcopter dynamics model */
-    // motor_one_speed   = MOTOR_CONSTANT * (filtInputThrottle - pid_out_x.total - pid_out_y.total - pid_out_z.total) * M1_CONST;
-    // // motor_one_speed   = MOTOR_CONSTANT * (filtInputThrottle - pid_out_x.total - pid_out_z.total) * M1_CONST;
-    // motor_two_speed   = MOTOR_CONSTANT * (filtInputThrottle - pid_out_x.total + pid_out_y.total + pid_out_z.total) * M2_CONST;
-    // // motor_two_speed   = MOTOR_CONSTANT * (filtInputThrottle + pid_out_y.total - pid_out_z.total) * M2_CONST;
-    // motor_three_speed = MOTOR_CONSTANT * (filtInputThrottle + pid_out_x.total + pid_out_y.total - pid_out_z.total) * M3_CONST;
-    // // motor_three_speed = MOTOR_CONSTANT * (filtInputThrottle + pid_out_x.total + pid_out_z.total) * M3_CONST;
-    // motor_four_speed  = MOTOR_CONSTANT * (filtInputThrottle + pid_out_x.total - pid_out_y.total + pid_out_z.total) * M4_CONST;
-    // // motor_four_speed  = MOTOR_CONSTANT * (filtInputThrottle - pid_out_y.total + pid_out_z.total) * M4_CONST;
-
-      mixMotors(filtInputThrottle, pidRollRate, pidPitchRate, pidYawRate);
-
-#if DEBUG_MOTOR
-    Serial.print(",m1:");
-    Serial.print(motor_one_speed);
-    Serial.print(",m2:");
-    Serial.print(motor_two_speed);
-    Serial.print(",m3:");
-    Serial.print(motor_three_speed);
-    Serial.print(",m4:");
-    Serial.print(motor_four_speed);
-    Serial.println();
-#endif
-
-    /* Send the motor speed commands to individual ESCS */
-    if (receiverValueRaw[CH_THR - 1] < MIN_THROTTLE)
-    {
-#if SITL_MODE
-      motor_pwm[0] = ESC_STOP;
-      motor_pwm[1] = ESC_STOP;
-      motor_pwm[2] = ESC_STOP;
-      motor_pwm[3] = ESC_STOP;
-      write_sitl_pwm();
-#else
-      m1_esc.speed(ESC_STOP);
-      m2_esc.speed(ESC_STOP);
-      m3_esc.speed(ESC_STOP);
-      m4_esc.speed(ESC_STOP);
-#endif
-      resetPID();
-    }
-    else
-    {
-#if SITL_MODE
-      motor_pwm[0] = (uint16_t)motor_one_speed;
-      motor_pwm[1] = (uint16_t)motor_two_speed;
-      motor_pwm[2] = (uint16_t)motor_three_speed;
-      motor_pwm[3] = (uint16_t)motor_four_speed;
-      write_sitl_pwm();
-#else
-      // /* Output motor speeds to ESCS */
-
-      m1_esc.speed(motor_one_speed);
-      m2_esc.speed(motor_two_speed);
-      m3_esc.speed(motor_three_speed);
-      m4_esc.speed(motor_four_speed);
-#endif
-    }
-
+    updateMotors();
     prevControlTimer = currControlTimer;
   } /* End of control loop */
 }
