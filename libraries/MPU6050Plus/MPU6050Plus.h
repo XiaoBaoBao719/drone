@@ -1,7 +1,7 @@
-#ifndef MPU6050Plus_h
-#define MPU6050Plus_h
+#ifndef MPU6050PLUS_H_
+#define MPU6050PLUS_H_
 
-#include "MPU6050.h"
+#include "I2Cdev.h"
 #include <Arduino.h>
 #include <Wire.h>
 #include <BasicLinearAlgebra.h>
@@ -13,10 +13,22 @@
 
 /* MPU6050 specific registers */
 #define MPU6050_ADRR                    0x68
-// #define MPU6050_SMPLRT_DIV_REGISTER     0x19
-// #define MPU6050_CONFIG_REGISTER         0x1a
-// #define MPU6050_GYRO_CONFIG             0x1b
-// #define MPU6050_ACCEL_CONFIG            0x1c
+
+#define MPU6050_RA_GYRO_CONFIG      0x1B
+#define MPU6050_RA_ACCEL_CONFIG     0x1C
+#define MPU6050_RA_ACCEL_XOUT_H     0x3B
+#define MPU6050_RA_GYRO_XOUT_H      0x43
+#define MPU6050_RA_XG_OFFS_USRH     0x13
+#define MPU6050_RA_YG_OFFS_USRH     0x15
+#define MPU6050_RA_ZG_OFFS_USRH     0x17
+#define MPU6050_RA_XA_OFFS_H        0x06
+#define MPU6050_RA_YA_OFFS_H        0x08
+#define MPU6050_RA_ZA_OFFS_H        0x0A
+
+#define MPU6050_GCONFIG_FS_SEL_BIT      4
+#define MPU6050_GCONFIG_FS_SEL_LENGTH   2
+#define MPU6050_ACONFIG_AFS_SEL_BIT         4
+#define MPU6050_ACONFIG_AFS_SEL_LENGTH      2
 
 
 #define M_PI (3.14159)
@@ -123,14 +135,17 @@ struct ImuPoint {
 class MPU6050Plus
 {
 private:
-    MPU6050 *mpu;              // pointer to mpu instance created by main
-    FilterOnePole *filters[6]; // create (RC) filters for each measurement channel
+    FilterOnePole *filters[6];                  // create (RC) filters for each measurement channel
     ImuPoint *currMeas;
     ImuPoint *lastMeas;
-    float fused_meas[3]; // rpy (x,y,z) format
-    float start_time;
-    float dT = 0.01; // imu sampling timestep 100 Hz default
-    unsigned long preInterval;
+    float fused_meas[3];                        // rpy (x,y,z) format
+    constexpr float start_time = 0.0;
+    static constexpr float dT = 0.01;                            // imu sampling timestep 100 Hz default
+    static constexpr unsigned long preInterval = 0;
+
+    bool invertedX = false;
+    bool invertedY = false;
+    bool invertedZ = false;
 
     float rawAccX, rawAccY, rawAccZ;
     float rawGyroX, rawGyroY, rawGyroZ;
@@ -139,22 +154,23 @@ private:
     float gyroX, gyroY, gyroZ;      // degrees / sec
     float angleAccX, angleAccY;
     float angleX, angleY, angleZ;
-    float gZdT;
-    float biasGyroX, biasGyroY, biasGyroZ = 0.0;
-
     float angleGyroX = 0.0, angleGyroY = 0.0, angleGyroZ = 0.0;
     float quaternion[4] = {0.0, 0.0, 0.0, 0.0}; // w, x, y, z format
 
     /* MPU scaling factors */
     float gyroScaleFactor;
-    int gyroScale;
+    uint16_t gyroScale;
 
     float accScaleFactor;
-    int accScale;
+    uint8_t accScale;
 
     /* IMU offsets */
+    static constexpr uint16_t ACCEL_DEADZONE = 8; // 8 LSBs is ~0.25 mg, which is roughly the noise level of the aceelerometer
+    static constexpr uint16_t GYRO_DEADZONE = 1; // 1 LSB is ~0.0076 deg/s, which is roughly the noise level of the gyros
+    static constexpr uint16_t CAL_BUFFER_LEN = 1000; // number of measurements to collect for calibration
+    static constexpr uint16_t NUM_ELEM_SKIP = 100; // number of initial measurements to skip for calibration (to let the filter settle)
     int32_t offset_ax = 0;
-    int32_t offset_ay = 0;
+    int32_t offset_ay = 0;`
     int32_t offset_az = 0;
     int32_t offset_gx = 0;
     int32_t offset_gy = 0;
@@ -168,72 +184,86 @@ private:
 
 public:
     MPU6050Plus();
+    void initialize(uint8_t devAddr, TwoWire *wireObj, float sampleT);
 
-    void initialize(MPU6050 *mpu, float sampleT);
+    // MPU6050 driver methods implemented using I2Cdev
+    void getAcceleration(int16_t* x, int16_t* y, int16_t* z);
+    void getRotation(int16_t* x, int16_t* y, int16_t* z);
+    void setFullScaleGyroRange(uint8_t range);
+    void setFullScaleAccelRange(uint8_t range);
+    void setXGyroOffset(int16_t offset);
+    void setYGyroOffset(int16_t offset); 
+    void setZGyroOffset(int16_t offset);
+    void setXAccelOffset(int16_t offset);
+    void setYAccelOffset(int16_t offset);
+    void setZAccelOffset(int16_t offset);
 
+    void filterMeasurements(float data[]);
+    void getMeasurementAvgs(float* data[], size_t size);
+    void calibrate_(float data[]);
+    bool calibrateIMU();
     // void getMeasurement(ImuPoint *point);
     // void getMeasurementRaw(float data[]);
     void updateRawMeasurements();
 
+    /* State estimation algorithms */
     void complementaryFilter();         // calculate and update attitude using complementary filter
-    void kalmanFilter();                // calculate and update attitude using kalman filter
+    // void kalmanFilter();                // calculate and update attitude using kalman filter
 
-    void filterMeasurements(float data[]);
+    /* Gyro axis-inversion setters */
     void invertAxis(int axis);
-    void invertX() { invertedX != invertedX; }
-    void invertY() { invertedY != invertedY; }
-    void invertZ() { invertedZ != invertedZ; }
+    void invertX() { invertedX = !invertedX; }
+    void invertY() { invertedY = !invertedY; }
+    void invertZ() { invertedZ = !invertedZ; }
+    void printInvertedAxes();
 
-    EulerRPY getRPY();
+    // EulerRPY getRPY();
 
     void showRawMeasurement(ImuPoint *point);
-
     void showVals(float data[]);
 
-    void calcOffsets();
     void configureGyroScale(GYRO_SCALE scale);
     void configureAccScale(ACCEL_SCALE scale);
 
     /* Data Getters */
-    void printInvertedAxes();
 
-    float getAccXRaw() { return rawAccX; }
-    float getAccYRaw() { return rawAccY; }
-    float getAccZRaw() { return rawAccZ; }
+    inline float getAccXRaw() { return rawAccX; }
+    inline float getAccYRaw() { return rawAccY; }
+    inline float getAccZRaw() { return rawAccZ; }
+    inline float getGyroXRaw() { return rawGyroX; }
+    inline float getGyroYRaw() { return rawGyroY; }
+    inline float getGyroZRaw() { return rawGyroZ; }
 
-    float getGyroXRaw() { return rawGyroX; }
-    float getGyroYRaw() { return rawGyroY; }
-    float getGyroZRaw() { return rawGyroZ; }
-
-    float getAccX() { return accX; }
-    float getAccY() { return accY; }
-    float getAccZ() { return accZ; }
-    float getGyroX() { return gyroX; }
-    float getGyroY() { return gyroY; }
-    float getGyroZ() { return gyroZ; }
+    inline float getAccX() { return accX; }
+    inline float getAccY() { return accY; }
+    inline float getAccZ() { return accZ; }
+    inline float getGyroX() { return gyroX; }
+    inline float getGyroY() { return gyroY; }
+    inline float getGyroZ() { return gyroZ; }
+    inline float getAngleAccX() { return angleAccX; }
+    inline float getAngleAccY() { return angleAccY; }
 
     float getAngleX() { return (invertedX) ? angleX * -1.0 : angleX; }        // angle X in degs
     float getAngleY() { return (invertedY) ? angleY * -1.0 : angleY; }        // angle y in degs
     float getAngleZ() { return (invertedZ) ? angleZ * -1.0 : angleZ; }        // angle z in degs
 
     float* angleAxisQuaternion();
-    
-    float getAngleAccX() { return angleAccX; }
-    float getAngleAccY() { return angleAccY; }
 
-    float getAngleGyroZ() { return gZdT; }
+    inline int16_t getOffsetGyroX() { return offset_gx; }
+    inline int16_t getOffsetGyroY() { return offset_gy; }
+    inline int16_t getOffsetGyroZ() { return offset_gz; }
+    inline int16_t getOffsetAccX()  { return offset_ax; }
+    inline int16_t getOffsetAccY()  { return offset_ay; }
+    inline int16_t getOffsetAccZ()  { return offset_az; }
 
-    double getOffsetGyroX() { return offset_gx; }
-    double getOffsetGyroY() { return offset_gy; }
-    double getOffsetGyroZ() { return offset_gz; }
+    constexpr float getGyroScaleFactor() { return gyroScaleFactor; }
+    constexpr uint16_t getGyroScale()    { return gyroScale; }
+    constexpr float getAccScaleFactor()  { return accScaleFactor; }
+    constexpr uint8_t getAccScale()     { return accScale; }
 
-    double getOffsetAccX()  { return offset_ax; }
-    double getOffsetAccY()  { return offset_ay; }
-    double getOffsetAccZ()  { return offset_az; }
-
-    bool invertedX = false;
-    bool invertedY = false;
-    bool invertedZ = false;
+protected:
+    uint8_t devAddr;
+    void *wireObj;
 };
 
-#endif  // endif MPU6050Plus_h
+#endif  // endif MPU6050PLUS_H_
