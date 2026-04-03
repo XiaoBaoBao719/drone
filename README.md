@@ -1,23 +1,22 @@
-# drone
-A quadcopter + flight controller from scratch.
+# Open-Quadcopter
+A reliable and simple quadcopter + flight controller from scratch. Completely hackable and easy to modify.
 
-flight controller:
-arduino nano r4
+Flight Control System:
+Renesas 32-bit ARM Cortex-M4 MCU embedded on an Arduino Nano R4 
 
-flight computer:
-rpi 3b
+Flight Command System:
+Embedded Compute: Raspberry Pi 4 (2GB) SBC running OS Ubuntu 22.01
 
-motors:
-Duckietown DX2205 2300 KV
+Propulsion:
+Electronic Speed Controllers: BrushlessTM 30A 2-4S lipo; bec 5v/2A
+Motors: Duckietown DX2205 2300 KV Brushless DC 3-Phase Motors
 
-escs:
-BrushlessTM 30A 2-4S lipo; bec 5v/2A
+Sensors:
+Adafruit MPU6050 (Inertial Measurement Unit)
+Sparkfun MLX90393 (Triple-Axis Magnetometer)
+Adafruit VL53L4CX (Vertical Time-of-Flight sensing)
+(planned) Sparkfun GP1818MMK (56 channel) (GPS module)
+Sony IMX219 Camera Module (Optical Flow for X-Y Attitude Sensing)
 
-sensors:
-adafruit MPU6050 (imu)
-sparkfun MLX90393 (triple axis magnetometer)
-adafruit VL53L4CX (time of flight)
-(planned) sparkfun GP1818MMK (56 channel) (gps module)
-
-advanced sensors:
-(planned) intel realsense d435i
+Advanced sensors:
+(planned) Intel realsense d435i
