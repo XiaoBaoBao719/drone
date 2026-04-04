@@ -2,11 +2,25 @@
 #include <I2Cdev.h>
 #include <Arduino.h>
 
-MPU6050Plus::MPU6050Plus() {
-    ImuPoint* currMeas_;
-    ImuPoint* lastMeas_;
-    currMeas = currMeas_;
-    lastMeas = lastMeas_;
+MPU6050Plus::MPU6050Plus()
+{
+    devAddr = MPU6050_ADRR;
+    wireObj = &Wire;
+    dT = 0.01;
+    currMeas = nullptr;
+    lastMeas = nullptr;
+    gyroScaleFactor = 131.0;
+    gyroScale = 250;
+    accScaleFactor = 16384.0;
+    accScale = 2;
+    for (size_t i = 0; i < sizeof(filters) / sizeof(filters[0]); ++i) {
+        filters[i] = nullptr;
+    }
+}
+
+MPU6050Plus::MPU6050Plus(uint8_t devAddr_, TwoWire *wireObj_, float sampleT)
+{
+    initialize(devAddr_, wireObj_, sampleT);
 }
 
 void MPU6050Plus::initialize(uint8_t devAddr_, TwoWire *wireObj_, float sampleT)
@@ -20,8 +34,7 @@ void MPU6050Plus::initialize(uint8_t devAddr_, TwoWire *wireObj_, float sampleT)
 
     /* Create filters for each measurement channel */
     for (size_t n = 0; n < sizeof(filters)/sizeof(filters[0]); n++ ) {
-        FilterOnePole filterLowpass( LOWPASS, FILTER_SAMPLING_FREQ );
-        filters[n] = &filterLowpass;
+        filters[n] = new FilterOnePole(LOWPASS, FILTER_SAMPLING_FREQ);
     }
 }
 
@@ -97,6 +110,17 @@ void MPU6050Plus::configureAccScale(ACCEL_SCALE scale)
 
     setFullScaleAccelRange(afs_select);
     // Serial.print("Accelerometer scale set to +/- %d g with sensitivity of %.1f LSB/g\n", accScale, accScaleFactor);
+}
+
+uint8_t MPU6050Plus::getDeviceID() {
+    uint8_t id = 0;
+    I2Cdev::readBits(devAddr, MPU6050_RA_WHO_AM_I, MPU6050_WHO_AM_I_BIT, MPU6050_WHO_AM_I_LENGTH, buffer, I2Cdev::readTimeout, wireObj);
+    id = buffer[0];
+    return id;
+}
+
+bool MPU6050Plus::testConnection() {
+    return getDeviceID() == 0x34;
 }
 
 void MPU6050Plus::updateRawMeasurements() {
@@ -210,17 +234,19 @@ void MPU6050Plus::complementaryFilter() {
 
 void MPU6050Plus::filterMeasurements(float data[])
 {
-    // Update the measurement based on it's respective filter (ps. they are all low pass filters)
-    for (size_t index = 0; index < sizeof(data) / sizeof(data[0]); index++)
+    // Update the measurement based on it's respective filter (all 6 channels)
+    for (size_t index = 0; index < 6; index++)
     {
-        data[index] = filters[index]->input(data[index]);
+        if (filters[index] != nullptr) {
+            data[index] = filters[index]->input(data[index]);
+        }
     }
 }
 
 /**
  * 
  */
-void MPU6050Plus::getMeasurementAvgs(float* data[], size_t size)
+void MPU6050Plus::getMeasurementAvgs(float data[], size_t size)
 {
     assert(size == 6);          // run time assertion that data is exactly a six element array
     long measCount = 0, buff_ax = 0, buff_ay = 0, buff_az = 0,
@@ -281,7 +307,7 @@ void MPU6050Plus::calibrate_(float data[], size_t size)
         setYGyroOffset(offset_gy);
         setZGyroOffset(offset_gz);
 
-        this->getMeasurementAvgs(&data, size);
+        this->getMeasurementAvgs(data, size);
 
         if ( abs( data[0] ) <= ACCEL_DEADZONE ) numSensorsReady++;
         else    offset_ax = offset_ax - data[0] / ACCEL_DEADZONE;
@@ -301,7 +327,7 @@ void MPU6050Plus::calibrate_(float data[], size_t size)
         if ( abs( data[5] ) <= ACCEL_DEADZONE ) numSensorsReady++;
         else    offset_gz = offset_gz - data[5] / (GYRO_DEADZONE + 1);
     
-        if (numSensorsRead == 6)    // there are six total 'sensors' on the IMU
+        if (numSensorsReady == 6)    // there are six total 'sensors' on the IMU
             break;
     }
 }
@@ -313,7 +339,7 @@ void MPU6050Plus::calibrateIMU() {
     uint8_t elements = 6;
     float data[elements] = {0.f};
 
-    getMeasurementAvgs(&data, elements);
+    getMeasurementAvgs(data, elements);
     calibrate_(data, elements);
     Serial.println("Calibration complete.");
 }

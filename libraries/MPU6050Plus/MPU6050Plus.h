@@ -24,6 +24,9 @@
 #define MPU6050_RA_XA_OFFS_H        0x06
 #define MPU6050_RA_YA_OFFS_H        0x08
 #define MPU6050_RA_ZA_OFFS_H        0x0A
+#define MPU6050_RA_WHO_AM_I         0x75
+#define MPU6050_WHO_AM_I_BIT        6
+#define MPU6050_WHO_AM_I_LENGTH     6
 
 #define MPU6050_GCONFIG_FS_SEL_BIT      4
 #define MPU6050_GCONFIG_FS_SEL_LENGTH   2
@@ -139,8 +142,8 @@ private:
     ImuPoint *currMeas;
     ImuPoint *lastMeas;
     float fused_meas[3];                        // rpy (x,y,z) format
-    constexpr float start_time = 0.0;
-    static constexpr float dT = 0.01;                            // imu sampling timestep 100 Hz default
+    static constexpr float start_time = 0.0;
+    float dT = 0.01;                            // imu sampling timestep 100 Hz default
     static constexpr unsigned long preInterval = 0;
 
     bool invertedX = false;
@@ -181,10 +184,14 @@ private:
     float accYHist[LP_FILTER_DEGREE] = {0.0};
     float accZHist[LP_FILTER_DEGREE] = {0.0};
     short lpFilterIndex = 0;
+    uint8_t buffer[6] = {0};
+    uint8_t getDeviceID();
 
 public:
     MPU6050Plus();
+    MPU6050Plus(uint8_t devAddr_, TwoWire *wireObj_, float sampleT = 0.01);
     void initialize(uint8_t devAddr, TwoWire *wireObj, float sampleT);
+    bool testConnection();
 
     // MPU6050 driver methods implemented using I2Cdev
     void getAcceleration(int16_t* x, int16_t* y, int16_t* z);
@@ -199,8 +206,8 @@ public:
     void setZAccelOffset(int16_t offset);
 
     void filterMeasurements(float data[]);
-    void getMeasurementAvgs(float* data[], size_t size);
-    void calibrate_(float data[]);
+    void getMeasurementAvgs(float data[], size_t size);
+    void calibrate_(float data[], size_t size);
     bool calibrateIMU();
     // void getMeasurement(ImuPoint *point);
     // void getMeasurementRaw(float data[]);

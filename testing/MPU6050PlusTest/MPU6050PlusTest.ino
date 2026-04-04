@@ -1,12 +1,16 @@
-#include "Wire.h"
+// #include "Wire.h"
+#include <Wire.h>
+// extern TwoWire Wire1;
 // #include "Arduino.h"
 // #include "Arduino_LED_Matrix.h"  //Include the LED_Matrix library
 
 // custom dependencies
 #include <MPU6050Plus.h>
+#include <Arduino.h>
 
 #define LED_PIN LED_BUILTIN
 #define BUTTON_PIN D2
+#define MPU_ADDR (0x68)
 
 // make an instance of the library:
 // ArduinoLEDMatrix matrix;
@@ -21,24 +25,25 @@ unsigned long currMillis = 0;
 uint32_t print_ts;
 uint32_t loopTimer;
 
-// MPU6050 mpu;
-MPU6050 mpu(0x68, &Wire1);
+
+// MPU6050Plus mpu;
+// MPU6050 mpu(0x68, &Wire1);
 MPU6050Plus imu;
 EulerRPY rpy;
 
 // const float IMU_SAMPLE_FREQ_MS = 1000;  // millisecs
 float IMU_SAMPLE_FREQ = 0.05;    // time interval between imu points (secs)
 
-void i2cSetup() {
-  // join I2C bus (I2Cdev library doesn't do this automatically)
-#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-  Wire1.begin();
-  Wire1.setClock(200000);
-  // TWBR = 24;  // 400kHz I2C clock (200kHz if CPU is 8MHz)
-#elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
-  Fastwire::setup(200, true);
-#endif
-}
+// void i2cSetup() {
+//   // join I2C bus (I2Cdev library doesn't do this automatically)
+// #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+//   Wire1.begin();
+//   Wire1.setClock(200000);
+//   // TWBR = 24;  // 400kHz I2C clock (200kHz if CPU is 8MHz)
+// #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
+//   Fastwire::setup(200, true);
+// #endif
+// }
 
 
 // # Source - https://stackoverflow.com/q/53033620
@@ -74,38 +79,37 @@ void setup() {
   Serial.begin(9600);
   /* Startup animation */
   pinMode(LED_BUILTIN, HIGH);
+
   // matrix.loadSequence(LEDMATRIX_ANIMATION_SPINNING_COIN);
   // matrix.begin();
   // matrix.play(true);
 
   /* I2C devices setup section */
   // Serial.println(F("Initialize I2C devices..."));
-  i2cSetup();
+  // i2cSetup();
+  Wire1.begin();
+  Wire1.setClock(400000); // 400 kHz I2C clock
 
-  /* IMU setup section */
-  // Serial.println(F("Initialize MPU..."));
-  mpu.initialize();
+  imu.initialize(MPU_ADDR, &Wire1, IMU_SAMPLE_FREQ);
   // Serial.println("Testing MPU connection...");
   // Check if MPU is ready to send bytes
-  while (mpu.testConnection() == false) {
+  while (imu.testConnection() == false) {
     Serial.println("MPU connection failed! Retrying...");
-    mpu.testConnection();
+    imu.testConnection();
     delay(1000);
   }
 
   /* Create MPU6050 Plus */
-  imu.initialize(&mpu, IMU_SAMPLE_FREQ);  print_ts = 0;
+  // imu.initialize(&mpu, IMU_SAMPLE_FREQ);  print_ts = 0;
 
   // Flip imu Y-axis since default coodinate frame is ENU
   /* Print Gyro and Accel configs */
 
   /* Perform calibration */
-
+  imu.calibrateIMU();
   // imu.calcOffsets();
-  mpu.CalibrateAccel(20);
-  mpu.CalibrateGyro(20);
-
-  // mpu.PrintActiveOffsets();
+  // mpu.CalibrateAccel(20);
+  // mpu.CalibrateGyro(20);
 
   // Serial.print("offset_acc_x:");
   // Serial.print(imu.getOffsetAccX());

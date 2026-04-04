@@ -590,7 +590,10 @@ void setup() {
   Wire1.begin();
   Wire1.setClock(400000); // 400 kHz I2C clock
 
-  /* Motor setup */
+  /** ============================================================ 
+   *                    Motor Setup 
+   *  ============================================================
+   */
   Serial.println(F("Arming ESCS..."));
   pinMode(LED_BUILTIN, HIGH);
   // delay(500);
@@ -609,26 +612,32 @@ void setup() {
   Serial.println(F("Initialize I2C devices..."));
   i2cSetup();
 
-  /* IMU setup section */
-  Serial.println(F("Initialize MPU..."));
-  mpu.initialize();
-  Serial.println("Testing MPU connection...");
-  // Check if MPU is ready to send bytes
-  while (mpu.testConnection() == false)
-  {
-    Serial.println("MPU connection failed! Retrying...");
-    mpu.testConnection();
-    delay(500);
-  }
-
+  /** ============================================================
+   *                    MPU6050 Setup
+   *  ============================================================
+   */
+  
   /* Create IMU data wrapper */
   imu.initialize(MPU_ADDR, &Wire1, IMU_SAMPLE_FREQ_SEC);
+
+  Serial.println("Testing IMU connection...");
+  // Check if MPU is ready to send bytes
+  while (imu.testConnection() == false)
+  {
+    Serial.println("MPU connection failed! Retrying...");
+    imu.testConnection();
+    delay(500);
+  }
   Serial.println("IMU initialized");
 
   // Calibrate the IMU accel/gyro offsets
   imu.calibrateIMU();
+  Serial.println("IMU calibrated");
 
-  /* RC PPM Receiver Setup */
+  /** ============================================================
+   *                   RC PPM Receiver Setup
+   *  ============================================================
+   */ 
   ppm.begin(PPM_INTERRUPT, false);
   readReceiver();
 
