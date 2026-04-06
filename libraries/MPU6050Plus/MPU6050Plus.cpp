@@ -23,6 +23,16 @@ MPU6050Plus::MPU6050Plus(uint8_t devAddr_, TwoWire *wireObj_, float sampleT)
     initialize(devAddr_, wireObj_, sampleT);
 }
 
+
+bool MPU6050Plus::initialize() {
+    if (!testConnection()) {
+        return false;
+    }
+    setClockSource(MPU6050_CLOCK_PLL_XGYRO);
+    setSleepEnabled(false);
+    return true;
+}
+
 void MPU6050Plus::initialize(uint8_t devAddr_, TwoWire *wireObj_, float sampleT)
 {
     devAddr = devAddr_;
@@ -31,6 +41,9 @@ void MPU6050Plus::initialize(uint8_t devAddr_, TwoWire *wireObj_, float sampleT)
 
     configureGyroScale(MPU_GYR_250);        // default to +/- 250 deg/s
     configureAccScale(MPU_ACC_2G);          // default to +/- 2g
+
+    setClockSource(MPU6050_CLOCK_PLL_XGYRO);
+    setSleepEnabled(false);
 
     /* Create filters for each measurement channel */
     for (size_t n = 0; n < sizeof(filters)/sizeof(filters[0]); n++ ) {
@@ -123,6 +136,9 @@ bool MPU6050Plus::testConnection() {
     return getDeviceID() == 0x34;
 }
 
+/**
+ * @brief Update the raw and converted measurements for all channels (accel x,y,z and gyro x,y,z).  
+ */
 void MPU6050Plus::updateRawMeasurements() {
     int16_t _ax_raw, _ay_raw, _az_raw;
     int16_t _gx_raw, _gy_raw, _gz_raw;
@@ -132,9 +148,12 @@ void MPU6050Plus::updateRawMeasurements() {
     /* +++++ Read raw accel values +++++ */
     getAcceleration(&_ax_raw,&_ay_raw,&_az_raw);
 
-    rawAccX = _ax_raw - this->getOffsetAccX();
-    rawAccY = _ay_raw - this->getOffsetAccY();
-    rawAccZ = _az_raw - this->getOffsetAccZ();
+    // rawAccX = _ax_raw - this->getOffsetAccX();
+    // rawAccY = _ay_raw - this->getOffsetAccY();
+    // rawAccZ = _az_raw - this->getOffsetAccZ();
+    rawAccX = _ax_raw;
+    rawAccY = _ay_raw;
+    rawAccZ = _az_raw;
 
     /* Convert: Accelerometer Counts -> m/s^2 
     Raw accelerometer values, which are in units of Counts per "g" (9.81m/s^2), 
@@ -145,6 +164,10 @@ void MPU6050Plus::updateRawMeasurements() {
     accX = (_ax_raw / this->getAccScaleFactor() ) * G;  // x
     accY = (_ay_raw / this->getAccScaleFactor() ) * G;  // y
     accZ = (_az_raw / this->getAccScaleFactor() ) * G;  // z
+
+    if (invertedX) accX = accX * -1;
+    if (invertedY) accY = accY * -1;
+    if (invertedZ) accZ = accZ * -1;
 
     // Calculate filtered accelerometer values as the average of
     // the new reading and the last LP_FILTER_DEGREE filtered readings
@@ -177,18 +200,34 @@ void MPU6050Plus::updateRawMeasurements() {
     /* +++++ Read raw gyro values +++++ */
     getRotation(&_gx_raw,&_gy_raw,&_gz_raw);
 
-    rawGyroX = _gx_raw - this->getOffsetGyroX();
-    rawGyroY = _gy_raw - this->getOffsetGyroY();
-    rawGyroZ = _gz_raw - this->getOffsetGyroZ();
+    // rawGyroX = _gx_raw - this->getOffsetGyroX();
+    // rawGyroY = _gy_raw - this->getOffsetGyroY();
+    // rawGyroZ = _gz_raw - this->getOffsetGyroZ();
+    rawGyroX = _gx_raw;
+    rawGyroY = _gy_raw;
+    rawGyroZ = _gz_raw;
 
     /* Convert: Counts -> deg/s */
     gyroX = _gx_raw / this->getGyroScaleFactor();
     gyroY = _gy_raw / this->getGyroScaleFactor();
     gyroZ = _gz_raw / this->getGyroScaleFactor();
+
+    if (invertedX) gyroX = gyroX * -1;
+    if (invertedY) gyroY = gyroY * -1;
+    if (invertedZ) gyroZ = gyroZ * -1;
+
+    // Serial.print(rawAccX); Serial.print(" ");
+    // Serial.print(rawAccY); Serial.print(" ");
+    // Serial.print(rawAccZ); Serial.print(" ");
+    // Serial.print(rawGyroX); Serial.print(" ");
+    // Serial.print(rawGyroY); Serial.print(" ");
+    // Serial.print(rawGyroZ); Serial.print(" ");
+    // Serial.println();
 }
 
 /**
- * @brief Update the attitude estimates using a complementary filter
+ * @brief Update the attitude estimates using a complementary filter that 
+ * fuses the accelerometer and gyro measurements.
  */
 void MPU6050Plus::complementaryFilter() {
     // float angleGyroX = 0.0, angleGyroY = 0.0, angleGyroZ = 0.0;
@@ -232,6 +271,9 @@ void MPU6050Plus::complementaryFilter() {
     // angleZ = wrapAngleDeg(angleZ);
 }
 
+/**
+ * @brief
+ */
 void MPU6050Plus::filterMeasurements(float data[])
 {
     // Update the measurement based on it's respective filter (all 6 channels)
@@ -243,14 +285,15 @@ void MPU6050Plus::filterMeasurements(float data[])
     }
 }
 
-/**
+/** @brief Collect a number of measurements, calculate the average for each channel, 
+ *  and return the averages in the data array.
  * 
  */
 void MPU6050Plus::getMeasurementAvgs(float data[], size_t size)
 {
     assert(size == 6);          // run time assertion that data is exactly a six element array
-    long measCount = 0, buff_ax = 0, buff_ay = 0, buff_az = 0,
-          buff_gx  = 0, bugg_gy = 0, buff_gz = 0;
+    long measCount = 0, buff_ax = 0, buff_ay = 0, buff_az = 0;
+    long buff_gx  = 0, buff_gy = 0, buff_gz = 0;
           
     while ( measCount < (CAL_BUFFER_LEN + NUM_ELEM_SKIP + 1) ) 
     {  // The first NUM_ELEM_SKIP measurements are discarded to allow sensor to settle
@@ -265,9 +308,12 @@ void MPU6050Plus::getMeasurementAvgs(float data[], size_t size)
             buff_gy = buff_gy + rawGyroY;
             buff_gz = buff_gz + rawGyroZ;
         }
+        // Serial.println("Collecting measurements...");
+        // Serial.print("Measurement count: ");
+        // Serial.println(measCount);
 
         measCount++;
-        delay(2);
+        // delay(2);
     }
     /* data frame format = { accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z }*/
     data[0] = buff_ax / CAL_BUFFER_LEN;
@@ -278,7 +324,8 @@ void MPU6050Plus::getMeasurementAvgs(float data[], size_t size)
     data[5] = buff_gz / CAL_BUFFER_LEN;
 }
 
-/**
+/** @brief Calibrate the IMU by adjusting the offsets until the 
+ *  average measurement is within a specified 'deadzone' threshold.
  * 
  */
 void MPU6050Plus::calibrate_(float data[], size_t size)
@@ -292,12 +339,20 @@ void MPU6050Plus::calibrate_(float data[], size_t size)
      * subtract from accel scale factor (i.e. 16384 counts).
      */ 
     offset_az = (this->getAccScaleFactor() -  data[2] ) / this->getAccScale();
+    // Serial.println("HELLO");
+    // Serial.print("offset "); Serial.println(offset_az);
     
     offset_gx = -1 * data[3] / this->getGyroScale();
     offset_gy = -1 * data[4] / this->getGyroScale();
     offset_gz = -1 * data[5] / this->getGyroScale();
-    
+
+    uint32_t zAccelTolerance = 20;
     uint8_t numSensorsReady = 0;
+
+    uint32_t debug_counter = 0;
+    char logBuffer[100];
+    sprintf(logBuffer, "Calibrating IMU...>");
+    Serial.println(logBuffer);
     while (true) {
             
         setXAccelOffset(offset_ax);
@@ -309,39 +364,78 @@ void MPU6050Plus::calibrate_(float data[], size_t size)
 
         this->getMeasurementAvgs(data, size);
 
-        if ( abs( data[0] ) <= ACCEL_DEADZONE ) numSensorsReady++;
+        // Serial.print(data[0]); Serial.print(" ");
+        // Serial.print(data[1]); Serial.print(" ");
+        // Serial.print(data[2]); Serial.print(" ");
+        // Serial.print(data[3]); Serial.print(" ");
+        // Serial.print(data[4]); Serial.print(" ");
+        // Serial.print(data[5]); Serial.print(" ");
+        // Serial.println();
+
+        numSensorsReady = 0;
+
+        if ( abs( data[0] ) <= ACCEL_DEADZONE ) {
+            // Serial.println("Accel X ready");
+            numSensorsReady++;
+        }
         else    offset_ax = offset_ax - data[0] / ACCEL_DEADZONE;
 
-        if ( abs( data[1] ) <= ACCEL_DEADZONE ) numSensorsReady++;
+        if ( abs( data[1] ) <= ACCEL_DEADZONE ) {
+            // Serial.println("Accel Y ready");
+            numSensorsReady++;
+        }
         else    offset_ay = offset_ay - data[1] / ACCEL_DEADZONE;
 
-        if ( abs( this->getAccScaleFactor() - data[2] ) <= ACCEL_DEADZONE ) numSensorsReady++;
+        if ( abs( this->getAccScaleFactor() - data[2] ) <= ACCEL_DEADZONE + zAccelTolerance ) {
+            // Serial.println("Accel Z ready");
+            numSensorsReady++;
+        }
         else    offset_az = offset_az + (this->getAccScaleFactor() - data[2] ) / ACCEL_DEADZONE;
 
-        if ( abs( data[3] ) <= ACCEL_DEADZONE ) numSensorsReady++;
+        if ( abs( data[3] ) <= GYRO_DEADZONE) {
+            numSensorsReady++;
+        }
         else    offset_gx = offset_gx - data[3] / (GYRO_DEADZONE + 1);
     
-        if ( abs( data[4] ) <= ACCEL_DEADZONE ) numSensorsReady++;
+        if ( abs( data[4] ) <= GYRO_DEADZONE ) {
+            numSensorsReady++;
+        }
         else    offset_gy = offset_gy - data[4] / (GYRO_DEADZONE + 1);
     
-        if ( abs( data[5] ) <= ACCEL_DEADZONE ) numSensorsReady++;
+        if ( abs( data[5] ) <= GYRO_DEADZONE) {
+            numSensorsReady++;
+        }
         else    offset_gz = offset_gz - data[5] / (GYRO_DEADZONE + 1);
-    
+
+
+        if (debug_counter % 100 == 0) {
+            Serial.print("Number of sensors ready: ");  Serial.println(numSensorsReady);
+            sprintf(logBuffer, "offset_az: %.2f", (getAccScaleFactor() - data[2]) );
+            // sprintf(logBuffer, "...> Number of sensors ready: %d", numSensorsReady);
+            Serial.println(logBuffer);
+        }
+        debug_counter++;
+
+
         if (numSensorsReady == 6)    // there are six total 'sensors' on the IMU
             break;
     }
 }
 
-/**
- * 
+/** 
+ *  @brief Calibrate the IMU by collecting a number of measurements, calculating 
+ *  the average for each channel, and adjusting the offsets until the average measurement 
+ *  is within a specified 'deadzone' threshold.
  */
-void MPU6050Plus::calibrateIMU() {
+bool MPU6050Plus::calibrateIMU() {
     uint8_t elements = 6;
-    float data[elements] = {0.f};
-
+    float data[elements];
+    memset(data, 0, sizeof(data));
+    Serial.println("Calibrating IMU...");
     getMeasurementAvgs(data, elements);
     calibrate_(data, elements);
     Serial.println("Calibration complete.");
+    return true;
 }
 
 /**
@@ -419,6 +513,14 @@ void MPU6050Plus::setFullScaleAccelRange(uint8_t range) {
     I2Cdev::writeBits(devAddr, MPU6050_RA_ACCEL_CONFIG, MPU6050_ACONFIG_AFS_SEL_BIT, MPU6050_ACONFIG_AFS_SEL_LENGTH, range, wireObj);
 }
 
+void MPU6050Plus::setClockSource(uint8_t source) {
+    I2Cdev::writeBits(devAddr, MPU6050_RA_PWR_MGMT_1, MPU6050_PWR1_CLKSEL_BIT, MPU6050_PWR1_CLKSEL_LENGTH, source, wireObj);
+}
+
+void MPU6050Plus::setSleepEnabled(bool enabled) {
+    I2Cdev::writeBit(devAddr, MPU6050_RA_PWR_MGMT_1, MPU6050_PWR1_SLEEP_BIT, enabled, wireObj);
+}
+
 void MPU6050Plus::setXGyroOffset(int16_t offset) {
     I2Cdev::writeWord(devAddr, MPU6050_RA_XG_OFFS_USRH, offset, wireObj);
 }
@@ -462,7 +564,7 @@ void MPU6050Plus::printInvertedAxes() {
     Serial.println();
 }
 
-static extern bool ImuPoint::isValid(){
+bool ImuPoint::isValid(){
     // Check that all values are real values
     return ( !(isnan(ax) || isinf(ax)) &&
              !(isnan(ay) || isinf(ay)) &&

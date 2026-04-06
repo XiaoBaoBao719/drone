@@ -91,13 +91,30 @@ void setup() {
   Wire1.setClock(400000); // 400 kHz I2C clock
 
   imu.initialize(MPU_ADDR, &Wire1, IMU_SAMPLE_FREQ);
-  // Serial.println("Testing MPU connection...");
-  // Check if MPU is ready to send bytes
-  while (imu.testConnection() == false) {
-    Serial.println("MPU connection failed! Retrying...");
-    imu.testConnection();
-    delay(1000);
+  
+  // Verify connection with WHO_AM_I before proceeding
+  uint8_t maxRetries = 10;
+  uint8_t retryCount = 0;
+  while (!imu.initialize() && retryCount < maxRetries) {
+    Serial.print("WHO_AM_I verification failed (attempt ");
+    Serial.print(retryCount + 1);
+    Serial.print("/");
+    Serial.print(maxRetries);
+    Serial.println("). Retrying...");
+    retryCount++;
+    delay(500);
   }
+  
+  if (retryCount >= maxRetries) {
+    Serial.println("FATAL: IMU initialization failed after max retries!");
+    while (1) {
+      digitalWrite(LED_BUILTIN, HIGH);
+      delay(100);
+      digitalWrite(LED_BUILTIN, LOW);
+      delay(100);
+    }
+  }
+  Serial.println("IMU initialized and verified.");
 
   /* Create MPU6050 Plus */
   // imu.initialize(&mpu, IMU_SAMPLE_FREQ);  print_ts = 0;
@@ -110,6 +127,10 @@ void setup() {
   // imu.calcOffsets();
   // mpu.CalibrateAccel(20);
   // mpu.CalibrateGyro(20);
+
+  imu.invertZ();
+
+  imu.printInvertedAxes();
 
   // Serial.print("offset_acc_x:");
   // Serial.print(imu.getOffsetAccX());

@@ -25,6 +25,18 @@
 #define MPU6050_RA_YA_OFFS_H        0x08
 #define MPU6050_RA_ZA_OFFS_H        0x0A
 #define MPU6050_RA_WHO_AM_I         0x75
+#define MPU6050_RA_SMPLRT_DIV       0x19
+#define MPU6050_RA_CONFIG           0x1A
+#define MPU6050_RA_PWR_MGMT_1       0x6B
+#define MPU6050_RA_PWR_MGMT_2       0x6C
+
+#define MPU6050_PWR1_DEVICE_RESET_BIT 7
+#define MPU6050_PWR1_SLEEP_BIT        6
+#define MPU6050_PWR1_CLKSEL_BIT       0
+#define MPU6050_PWR1_CLKSEL_LENGTH    3
+
+#define MPU6050_CLOCK_INTERNAL       0x00
+#define MPU6050_CLOCK_PLL_XGYRO      0x01
 #define MPU6050_WHO_AM_I_BIT        6
 #define MPU6050_WHO_AM_I_LENGTH     6
 
@@ -62,9 +74,6 @@
 
 /* State Estimate Params */
 const float COMPLEMENTARY_ALPHA = 0.95; // 0.05;
-
-/* Calibration Params */
-const float NUM_CALIB_CYCLES = 50;
 
 enum GYRO_SCALE {
     MPU_GYR_250,
@@ -170,10 +179,10 @@ private:
     /* IMU offsets */
     static constexpr uint16_t ACCEL_DEADZONE = 8; // 8 LSBs is ~0.25 mg, which is roughly the noise level of the aceelerometer
     static constexpr uint16_t GYRO_DEADZONE = 1; // 1 LSB is ~0.0076 deg/s, which is roughly the noise level of the gyros
-    static constexpr uint16_t CAL_BUFFER_LEN = 1000; // number of measurements to collect for calibration
-    static constexpr uint16_t NUM_ELEM_SKIP = 100; // number of initial measurements to skip for calibration (to let the filter settle)
+    static constexpr uint16_t CAL_BUFFER_LEN = 100; // number of measurements to collect for calibration
+    static constexpr uint16_t NUM_ELEM_SKIP = 20; // number of initial measurements to skip for calibration (to let the filter settle)
     int32_t offset_ax = 0;
-    int32_t offset_ay = 0;`
+    int32_t offset_ay = 0;
     int32_t offset_az = 0;
     int32_t offset_gx = 0;
     int32_t offset_gy = 0;
@@ -191,6 +200,7 @@ public:
     MPU6050Plus();
     MPU6050Plus(uint8_t devAddr_, TwoWire *wireObj_, float sampleT = 0.01);
     void initialize(uint8_t devAddr, TwoWire *wireObj, float sampleT);
+    bool initialize();
     bool testConnection();
 
     // MPU6050 driver methods implemented using I2Cdev
@@ -198,6 +208,8 @@ public:
     void getRotation(int16_t* x, int16_t* y, int16_t* z);
     void setFullScaleGyroRange(uint8_t range);
     void setFullScaleAccelRange(uint8_t range);
+    void setClockSource(uint8_t source);
+    void setSleepEnabled(bool enabled);
     void setXGyroOffset(int16_t offset);
     void setYGyroOffset(int16_t offset); 
     void setZGyroOffset(int16_t offset);
@@ -250,9 +262,9 @@ public:
     inline float getAngleAccX() { return angleAccX; }
     inline float getAngleAccY() { return angleAccY; }
 
-    float getAngleX() { return (invertedX) ? angleX * -1.0 : angleX; }        // angle X in degs
-    float getAngleY() { return (invertedY) ? angleY * -1.0 : angleY; }        // angle y in degs
-    float getAngleZ() { return (invertedZ) ? angleZ * -1.0 : angleZ; }        // angle z in degs
+    float getAngleX() { return angleX; }        // angle X in degs
+    float getAngleY() { return angleY; }        // angle y in degs
+    float getAngleZ() { return angleZ; }        // angle z in degs
 
     float* angleAxisQuaternion();
 
