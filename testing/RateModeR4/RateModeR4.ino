@@ -78,6 +78,16 @@ float ypr[3];         // [yaw, pitch, roll] Angle conversion w/ gravity vector
 #define ESC_STOP (500)
 #define MIN_ARM_TIME (500)
 
+#define MIN_THROTTLE (1050)
+#define MAX_THROTTLE (ESC_SPEED_MAX)
+#define MOTOR_CONSTANT (1.025) // (7)
+// Cheap COTS motors have variable performance and are further tuned here:
+#define M1_CONST (1.0)//(0.98)
+#define M2_CONST (1.0)//(0.95)
+#define M3_CONST (1.0)
+#define M4_CONST (1.0)
+// TODO: characterize individual motor constants via thrust test stand
+
 static constexpr uint16_t MAX_INIT_THROTTLE = 1100;
 
 /* Quadcopter Motor Layout
@@ -132,48 +142,71 @@ int rateCalibNumber;
 
 #define CONTROL_LOOP_TIME_MS (1)      // milliseconds (1 kHz)
 #define CONTROL_LOOP_TIME_SEC  (0.001)     // seconds   (1,000 Hz)
+
+enum ControlMode {
+  RATE_MODE,
+  ANGLE_MODE,
+  POSITION_MODE
+};
+
+ControlMode controlMode = RATE_MODE; 
 unsigned long prevControlTimer;
 unsigned long currControlTimer;
 
-float setptRateX, setptRateY, setptRateZ, prev_setptRateX, prev_setptRateY, prev_setptRateZ;
-float inputX, inputY, inputZ, input_throttle;
-float errorRateX, errorRateY, errorRateZ;
+/* Angle Mode State Vars */
+static float pidRollAngle;
+static float pidPitchAngle;
+static float pidYawAngle;
 
-float prevErrorRateX, prevErrorRateY, prevErrorRateZ;
-float prevIGainX, prevIGainY, prevIGainZ;
+/* Angle Mode Controller PID Gains */
+/* Converts desired attitude angles to rate setpoints (cascaded control) */
+static constexpr float ANGLE_ROLL_KP   = 3.8f;   // Attitude to rate conversion (±45° -> ~±190 deg/s)
+static constexpr float ANGLE_PITCH_KP  = 3.8f;   // Symmetric with roll
+static constexpr float ANGLE_YAW_KP    = 1.5f;   // Lower for conservative yaw control
+
+static constexpr float ANGLE_ROLL_KI   = 0.015f; // Corrects steady-state angle bias
+static constexpr float ANGLE_PITCH_KI  = 0.015f;
+static constexpr float ANGLE_YAW_KI    = 0.004f; // Very small (gyro drift sensitivity)
+
+static constexpr float ANGLE_ROLL_KD   = 0.10f;  // Damping on attitude rate
+static constexpr float ANGLE_PITCH_KD  = 0.10f;
+static constexpr float ANGLE_YAW_KD    = 0.05f;  // Minimal damping for yaw
+
+static constexpr float ANGLE_ROLL_I_LIMIT   = 50.0f;   // Conservative vs rate loop
+static constexpr float ANGLE_PITCH_I_LIMIT  = 50.0f;
+static constexpr float ANGLE_YAW_I_LIMIT    = 30.0f;
+
+static constexpr float ANGLE_PID_LIMIT = 200.0f; // Rate setpoint limit (±200 deg/s)
+
+
+/* Rate Mode State Vars */
+float setptRateX, setptRateY, setptRateZ;
+float inputX, inputY, inputZ, input_throttle;
 
 static float pidRollRate;
 static float pidPitchRate;
 static float pidYawRate;
 
-/* Attitude Controller PID gains */
-static constexpr float ROLL_KP    = 0.8f;
-static constexpr float PITCH_KP   = 0.8f; //0.167;
-static constexpr float YAW_KP     = 0.5f;
+/* Rate Mode Controller PID Gains */
+/* Gyroscope direct feedback (inner loop) - 1000 Hz control */
+static constexpr float ROLL_KP    = 0.90f;   // +12.5% - tighter response for 1kHz loop & 250g mass
+static constexpr float PITCH_KP   = 0.90f;   // Symmetric with roll
+static constexpr float YAW_KP     = 0.55f;   // +10% - faster yaw response
 
-static constexpr float ROLL_KI    = 0.01f;
-static constexpr float PITCH_KI   = 0.01f;
-static constexpr float YAW_KI     = 0.004f;
+static constexpr float ROLL_KI    = 0.015f;  // +50% - compensates motor drag & ESC non-linearity
+static constexpr float PITCH_KI   = 0.015f;
+static constexpr float YAW_KI     = 0.008f;  // +100% - better steady-state
 
-static constexpr float ROLL_KD    = 0.05f;
-static constexpr float PITCH_KD   = 0.05f;
-static constexpr float YAW_KD     = 0.001f;
+static constexpr float ROLL_KD    = 0.060f;  // +20% - enhanced damping for 2-blade props
+static constexpr float PITCH_KD   = 0.060f;
+static constexpr float YAW_KD     = 0.002f;  // +100% - increased damping
 
-static constexpr float ROLL_I_LIMIT   = 100.0f;
+static constexpr float ROLL_I_LIMIT   = 100.0f;  // Integral saturation
 static constexpr float PITCH_I_LIMIT  = 100.0f;
-static constexpr float YAW_I_LIMIT    = 200.0f;
+static constexpr float YAW_I_LIMIT    = 150.0f;  // -25% - more conservative
 
-static constexpr float PID_LIMIT  = 300.0f;
+static constexpr float PID_LIMIT  = 300.0f;  // ±300 motor command units
 
-#define MIN_THROTTLE (1050)
-#define MAX_THROTTLE (ESC_SPEED_MAX)
-#define MOTOR_CONSTANT (1.025) // (7)
-// Cheap COTS motors have variable performance and are further tuned here:
-#define M1_CONST (1.0)//(0.98)
-#define M2_CONST (1.0)//(0.95)
-#define M3_CONST (1.0)
-#define M4_CONST (1.0)
-// TODO: characterize individual motor constants via thrust test stand
 
 /* END GLOBAL CONSTANTS */
 
@@ -182,6 +215,10 @@ struct PIDState {
   float prevMeasurement;
   float prevError;
 };
+
+static PIDState rollAnglePID = {};
+static PIDState pitchAnglePID = {};
+static PIDState yawAnglePID = {};
 
 static PIDState rollRatePID   = {};
 static PIDState pitchRatePID  = {};
@@ -213,7 +250,6 @@ static float pid(float setpt, float measurement,
   
   /* PID output */
   float pid_output = constrain(p_ + i_ + d_, -pidLimit, pidLimit);
-
 
 // #if DEBUG_PID
 //   Serial.print("\t");
@@ -330,6 +366,10 @@ void write_sitl_pwm() {
  * These are intentionally conservative for initial flight testing.
  * Increase gradually once the platform is confirmed stable.
  */
+static constexpr float MAX_ROLL_ANGLE     = 45.0f;
+static constexpr float MAX_PITCH_ANGLE    = 45.0f;
+static constexpr float MAX_YAW_ANGLE      = 20.0f;
+
 static constexpr float MAX_ROLL_RATE_DPS  = 200.0f;  ///< deg/s at full stick
 static constexpr float MAX_PITCH_RATE_DPS = 200.0f;  ///< deg/s at full stick
 static constexpr float MAX_YAW_RATE_DPS   = 120.0f;  ///< deg/s at full stick
@@ -398,10 +438,17 @@ static void readReceiver(void) {
   receiverValueRaw[CH_L_KNOB - 1] = ppm.read_channel(CH_L_KNOB);
   receiverValueRaw[CH_R_KNOB - 1] = ppm.read_channel(CH_R_KNOB);
 
-  rcThrottleRaw = constrain(receiverValueRaw[CH_THR - 1], MIN_THROTTLE, MAX_THROTTLE);
-  rcRoll     = scaleRcToAngleRate(receiverValueRaw[CH_ROLL - 1], MAX_ROLL_RATE_DPS);
-  rcPitch    = scaleRcToAngleRate(receiverValueRaw[CH_PITCH - 1], MAX_PITCH_RATE_DPS);
-  rcYaw      = scaleRcToAngleRate(receiverValueRaw[CH_YAW - 1], MAX_YAW_RATE_DPS);
+  if (controlMode == RATE_MODE) {
+    rcThrottleRaw = constrain(receiverValueRaw[CH_THR - 1], MIN_THROTTLE, MAX_THROTTLE);
+    rcRoll = scaleRcToAngleRate(receiverValueRaw[CH_ROLL - 1], MAX_ROLL_RATE_DPS);
+    rcPitch = scaleRcToAngleRate(receiverValueRaw[CH_PITCH - 1], MAX_PITCH_RATE_DPS);
+    rcYaw = scaleRcToAngleRate(receiverValueRaw[CH_YAW - 1], MAX_YAW_RATE_DPS);
+  } else if (controlMode == ANGLE_MODE) {
+    rcThrottleRaw = constrain(receiverValueRaw[CH_THR - 1], MIN_THROTTLE, MAX_THROTTLE);
+    rcRoll = scaleRcToAngleRate(receiverValueRaw[CH_ROLL - 1], MAX_ROLL_ANGLE);
+    rcPitch = scaleRcToAngleRate(receiverValueRaw[CH_PITCH - 1], MAX_PITCH_ANGLE);
+    rcYaw = scaleRcToAngleRate(receiverValueRaw[CH_YAW - 1], MAX_YAW_ANGLE);
+  }
 
   /* Process the throttle rc channel with a low-pass filter */
   // filtInputThrottle = lowPassFilter(rcThrottle, filtInputThrottle, THROTTLE_LP_FILTER_COEFF);
@@ -438,7 +485,7 @@ static void readReceiver(void) {
   /* Set rcThrottle to the current index in the low pass filter */
   rcThrottle = inputThrottleHist[lpFilterIndex];
   rcRoll     = inputXHist[lpFilterIndex];
-  rcPitch    = inputYHist[lpFilterIndex];yawRatePID
+  rcPitch    = inputYHist[lpFilterIndex];yawRatePID;
   rcYaw      = inputZHist[lpFilterIndex];
 
   // Print the values for the Arduino Serial Plotter
@@ -546,13 +593,26 @@ void updateSensors() {
 }
 
 void updateControllers() {
-  pidRollRate   = pid(rcRoll, angleRateX, ROLL_KP, ROLL_KI, ROLL_KD,
+
+  pidRollAngle  = pid(rcRoll, angleX, ANGLE_ROLL_KD, ANGLE_ROLL_KI, ANGLE_ROLL_KD,
+                          CONTROL_LOOP_TIME_SEC, ANGLE_ROLL_I_LIMIT, ANGLE_PID_LIMIT, 
+                          rollAnglePID);
+
+  pidPitchAngle = pid(rcPitch, angleY, ANGLE_PITCH_KD, ANGLE_PITCH_KI, ANGLE_PITCH_KD,
+                          CONTROL_LOOP_TIME_SEC, ANGLE_PITCH_I_LIMIT, ANGLE_PID_LIMIT,
+                          pitchAnglePID);
+
+  pidYawAngle   = pid(rcYaw, angleZ, ANGLE_YAW_KD, ANGLE_YAW_KI, ANGLE_YAW_KD,
+                          CONTROL_LOOP_TIME_SEC, ANGLE_YAW_I_LIMIT, ANGLE_PID_LIMIT,
+                          yawAnglePID);
+
+  pidRollRate   = pid(pidRollAngle, angleRateX, ROLL_KP, ROLL_KI, ROLL_KD,
                           CONTROL_LOOP_TIME_SEC, ROLL_I_LIMIT, PID_LIMIT, rollRatePID);
 
-  pidPitchRate  = pid(rcPitch, angleRateY, PITCH_KP, PITCH_KI, PITCH_KD,
+  pidPitchRate  = pid(pidPitchAngle, angleRateY, PITCH_KP, PITCH_KI, PITCH_KD,
                            CONTROL_LOOP_TIME_SEC, PITCH_I_LIMIT, PID_LIMIT, pitchRatePID);
 
-  pidYawRate    = pid(rcYaw, angleRateZ, YAW_KP, YAW_KI, YAW_KD,
+  pidYawRate    = pid(pidYawAngle, angleRateZ, YAW_KP, YAW_KI, YAW_KD,
                          CONTROL_LOOP_TIME_SEC, YAW_I_LIMIT, PID_LIMIT, yawRatePID);
   // Serial.println("thr: " + String(input_throttle) + "\tpidX: " + String(pid_out_x) + "\tpidY: " + String(pid_out_y) + "\tpidZ: " + String(pid_out_z));
   // Serial.println();

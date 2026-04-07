@@ -1,0 +1,421 @@
+/**
+ * @file INDEX_AND_QUICKLINKS.txt
+ * @brief Master index of all PID documentation files
+ */
+
+================================================================================
+PID CONTROLLER DOCUMENTATION - MASTER INDEX
+================================================================================
+
+Project: 250g Quadcopter with 5" Propellers
+Target Loop Rate: 1000 Hz
+Created: April 2026
+Repository: /home/metis/OpenQuadcopter/testing/RateModeR4/
+
+================================================================================
+QUICK START (Where to Begin)
+================================================================================
+
+TIME AVAILABLE?         READ THIS FILE FIRST:
+─────────────────────────────────────────────────────────────────────
+5 minutes               QUICK_START_CHECKLIST.txt (start here!)
+10 minutes              PID_GAINS_VISUAL_SUMMARY.txt
+20 minutes              PID_Gains_250g_5inch.h (with code)
+30+ minutes             PID_Tuning_Reference_Table.md (comprehensive)
+During tuning           QUICK_START_CHECKLIST.txt (Part 6)
+
+================================================================================
+COMPLETE FILE LIST & PURPOSE
+================================================================================
+
+1. INDEX_AND_QUICKLINKS.txt ← YOU ARE HERE
+   ├─ Purpose: Navigation and file overview
+   ├─ When to use: Deciding which file to read
+   ├─ Format: This file (text with table)
+   └─ Read time: 2 minutes
+
+2. QUICK_START_CHECKLIST.txt ★★★ START HERE ★★★
+   ├─ Purpose: 5-minute quick start guide
+   ├─ When to use: First time integrating PID gains
+   ├─ Format: Numbered steps and checklists
+   ├─ Sections:
+   │  ├─ Part 1: Review (2 min) - Verify your gains are OK
+   │  ├─ Part 2: Decide action (1 min) - Test as-is vs modify
+   │  ├─ Part 3: Update code (3 min) - Add documentation
+   │  ├─ Part 4: Preflight (2 min) - Hardware verification
+   │  ├─ Part 5: Test (20 min) - First flight procedure
+   │  ├─ Part 6: Troubleshooting (5 min) - Fix common problems
+   │  └─ Part 7: Next steps (forward planning)
+   ├─ Output: Ready to fly or specific gain adjustments needed
+   └─ Read time: 5-10 minutes (can refer back during testing)
+
+3. PID_GAINS_VISUAL_SUMMARY.txt
+   ├─ Purpose: Visual reference with ASCII diagrams
+   ├─ When to use: Quick lookup, understanding gains visually
+   ├─ Format: Tables, ASCII art, decision trees
+   ├─ Content:
+   │  ├─ Control architecture diagram
+   │  ├─ Rate controller gains table
+   │  ├─ Angle controller gains table
+   │  ├─ Tuning reference cheatsheet
+   │  ├─ Response behavior visualization
+   │  ├─ Decision tree
+   │  ├─ Adjustment guide
+   │  ├─ Performance checklist
+   │  ├─ Platform scaling reference
+   │  └─ File reference guide
+   ├─ Output: Visual understanding of PID control
+   └─ Read time: 10-15 minutes
+
+4. PID_Gains_Summary.h
+   ├─ Purpose: Compact C++ code reference
+   ├─ When to use: Looking up specific gain values
+   ├─ Format: C++ header file with constexpr declarations
+   ├─ Content:
+   │  ├─ Rate controller gains (9 values)
+   │  ├─ Angle controller gains (9 values)
+   │  ├─ All limits and saturation values
+   │  ├─ Typical range for each (1 line)
+   │  ├─ Notes about tuning (1 line per gain)
+   │  └─ Quick adjustment reference
+   ├─ Output: Compact reference
+   └─ Read time: 2-3 minutes
+
+5. PID_IMPLEMENTATION_READY.h ★★★ USE FOR CODE ★★★
+   ├─ Purpose: Production-ready, copy-paste PID gains
+   ├─ When to use: Integrating gains into RateModeR4.ino
+   ├─ Format: C++ header file with extensive comments
+   ├─ Content:
+   │  ├─ ANGLE MODE section (12 gains + limits)
+   │  ├─ RATE MODE section (12 gains + limits)
+   │  ├─ Comprehensive inline comments (3-5 lines each)
+   │  ├─ Safety checks and validation
+   │  ├─ Usage instructions (4 steps)
+   │  ├─ Quick adjustment reference
+   │  ├─ Performance monitoring tips
+   │  └─ Platform-specific notes
+   ├─ Output: Production code, ready to compile
+   └─ Use time: 10 minutes (copy sections, paste, test)
+
+6. PID_Gains_250g_5inch.h ★★★ BEST FOR UNDERSTANDING ★★★
+   ├─ Purpose: Comprehensive, detailed PID documentation
+   ├─ When to use: Understanding each gain deeply
+   ├─ Format: C++ header file with extensive comments
+   ├─ Content:
+   │  ├─ Platform specification section
+   │  ├─ Tuning methodology and references
+   │  ├─ RATE CONTROLLER section (9 gains):
+   │  │  └─ Each with 2-5 line explanation of purpose/range/tuning
+   │  ├─ RATE controller limits explanation
+   │  ├─ ANGLE CONTROLLER section (9 gains):
+   │  │  └─ Each with 2-5 line explanation
+   │  ├─ ANGLE controller limits explanation
+   │  ├─ Massive tuning guide (100+ lines):
+   │  │  ├─ Symptoms and fixes (table format)
+   │  │  ├─ KP tuning details
+   │  │  ├─ KI tuning details
+   │  │  ├─ KD tuning details
+   │  │  ├─ YAW-specific tuning
+   │  │  ├─ ANGLE mode specific tuning
+   │  │  ├─ Cascaded loop warnings
+   │  │  ├─ Platform-specific notes
+   │  │  ├─ Further refinements (racing, photography)
+   │  │  └─ Tuning strategy steps
+   ├─ Output: Deep understanding, ready for expert tuning
+   └─ Read time: 30-45 minutes (reference while tuning)
+
+7. PID_Tuning_Reference_Table.md ★★★ TUNING BIBLE ★★★
+   ├─ Purpose: Comprehensive tuning guide (markdown)
+   ├─ When to use: Troubleshooting or iterative tuning
+   ├─ Format: Markdown with tables, decision trees, examples
+   ├─ Content (8 parts):
+   │  ├─ Executive Summary (1 page overview)
+   │  ├─ Part 1: Rate Controller Tuning
+   │  │  ├─ Role & typical tuning order
+   │  │  ├─ KP tuning (table + examples)
+   │  │  ├─ KI tuning (table + examples)
+   │  │  ├─ KD tuning (table + examples)
+   │  │  └─ YAW-specific tuning
+   │  ├─ Part 2: Angle Controller Tuning
+   │  │  ├─ ANGLE_KP tuning
+   │  │  ├─ ANGLE_KD tuning
+   │  │  ├─ ANGLE_KI tuning
+   │  │  ├─ Cascaded loop warning
+   │  │  └─ Rate setpoint safety checks
+   │  ├─ Part 3: Platform-Specific Scaling
+   │  │  ├─ Mass scaling formula
+   │  │  ├─ Loop rate scaling
+   │  │  └─ Propeller size effects
+   │  ├─ Part 4: Practical Examples
+   │  │  ├─ Example 1: Sluggish frame
+   │  │  ├─ Example 2: Oscillating frame
+   │  │  ├─ Example 3: Angle mode sluggish
+   │  │  └─ Example 4: Yaw slow
+   │  ├─ Part 5: Measurement & Logging
+   │  │  ├─ Serial output format
+   │  │  ├─ Example C++ code
+   │  │  └─ Healthy behavior indicators
+   │  ├─ Part 6: Quick Decision Tree
+   │  │  └─ Symptom → Solution paths
+   │  ├─ Part 7: Reference Gains (Crazyflie comparison)
+   │  └─ Part 8: Signs of good tuning
+   ├─ Output: Expert-level tuning reference
+   └─ Read time: 45-60 minutes (reference during tuning sessions)
+
+8. PID_Gains_Integration_Guide.cpp
+   ├─ Purpose: Integration walkthrough with detailed tables
+   ├─ When to use: Verifying integration or platform-specific notes
+   ├─ Format: C++ code comments with extensive documentation
+   ├─ Content:
+   │  ├─ Step 1: Include header
+   │  ├─ Step 2: Updated constants section (full code example)
+   │  ├─ Step 3: Gain meanings & tuning direction (2 tables)
+   │  ├─ Step 4: Testing procedure
+   │  │  ├─ Preflight checklist
+   │  │  ├─ Indoor flight test
+   │  │  ├─ Outdoor flight test
+   │  │  └─ Tuning iteration guide
+   │  ├─ Step 5: Performance monitoring setup
+   │  ├─ Step 6: Platform-specific notes
+   │  └─ Step 7: Reference implementations (other platforms)
+   ├─ Output: Integration verification, testing procedure
+   └─ Read time: 20-30 minutes
+
+9. PID_README.md
+   ├─ Purpose: Complete project overview and navigation
+   ├─ When to use: First time understanding the full package
+   ├─ Format: Markdown with detailed sections
+   ├─ Content:
+   │  ├─ Overview
+   │  ├─ Package contents (all 9 files described)
+   │  ├─ Quick start (3 steps)
+   │  ├─ File selection guide (which file for what)
+   │  ├─ Platform specification
+   │  ├─ Gain summary table
+   │  ├─ Tuning decision tree
+   │  ├─ Common adjustments
+   │  ├─ Derivation & validation
+   │  ├─ Testing recommendations
+   │  ├─ Integration checklist
+   │  ├─ Support references
+   │  ├─ Version information
+   │  └─ License & attribution
+   ├─ Output: Complete project context
+   └─ Read time: 20-30 minutes
+
+================================================================================
+RECOMMENDED READING ORDER
+================================================================================
+
+FIRST TIME (Getting Started):
+  1. QUICK_START_CHECKLIST.txt (5 min)       ← BEGIN HERE
+  2. PID_GAINS_VISUAL_SUMMARY.txt (10 min)   ← Understand visually
+  3. Test quad (20 min)                      ← Hands-on verification
+  4. If problems: PART 6 of Checklist (5 min) ← Troubleshoot
+
+UNDERSTANDING DEEPLY (Optional, 45 min):
+  1. PID_Gains_250g_5inch.h (20 min)         ← All explanations
+  2. PID_Tuning_Reference_Table.md (25 min)  ← Comprehensive guide
+
+INTEGRATION & DEVELOPMENT (30 min):
+  1. PID_IMPLEMENTATION_READY.h (10 min)     ← Copy code
+  2. PID_Gains_Integration_Guide.cpp (10 min)← Verify integration
+  3. Compile & test (10 min)                 ← Hands-on
+
+ADVANCED TUNING (During iteration):
+  1. PID_Tuning_Reference_Table.md (reference) ← Lookup symptoms
+  2. PID_Gains_250g_5inch.h (reference)      ← Understand effects
+  3. Make 10% gain adjustments                ← Test each one
+  4. Document changes                        ← For future reference
+
+================================================================================
+FILE LOOKUP BY TASK
+================================================================================
+
+TASK: "I just want to fly"
+  → QUICK_START_CHECKLIST.txt
+  → Copy gains from: PID_IMPLEMENTATION_READY.h
+
+TASK: "I want to understand what each gain does"
+  → PID_Gains_250g_5inch.h
+  → Supplement with: PID_Tuning_Reference_Table.md Part 1-2
+
+TASK: "My quad has [symptom]"
+  → QUICK_START_CHECKLIST.txt Part 6 (quick fix)
+  → PID_Tuning_Reference_Table.md (detailed solutions)
+
+TASK: "I need to scale these to a different platform"
+  → PID_Tuning_Reference_Table.md Part 3 (scaling formulas)
+  → PID_Gains_Integration_Guide.cpp (reference gains)
+
+TASK: "I want to tune aggressively/conservatively"
+  → PID_Gains_250g_5inch.h (Further Tuning Refinements section)
+  → PID_GAINS_VISUAL_SUMMARY.txt (Quick Adjustment Guide)
+
+TASK: "I need to integrate into my code"
+  → PID_IMPLEMENTATION_READY.h (copy sections)
+  → PID_Gains_Integration_Guide.cpp (verify steps)
+
+TASK: "I need a quick reference during tuning"
+  → PID_GAINS_VISUAL_SUMMARY.txt (lookup table)
+  → PID_Gains_Summary.h (just the numbers)
+
+================================================================================
+FILE SIZES & READ TIMES
+================================================================================
+
+File                                    Lines  Read Time  Use Case
+────────────────────────────────────────────────────────────────────
+INDEX_AND_QUICKLINKS.txt               250    2 min     Navigation
+QUICK_START_CHECKLIST.txt              400    5 min     Getting started
+PID_GAINS_VISUAL_SUMMARY.txt           300    10 min    Visual reference
+PID_Gains_Summary.h                    150    2 min     Lookup
+PID_IMPLEMENTATION_READY.h             350    10 min    Code integration
+PID_Gains_250g_5inch.h                 450    30 min    Deep understanding
+PID_Tuning_Reference_Table.md         1200    45 min    Comprehensive guide
+PID_Gains_Integration_Guide.cpp        400    20 min    Integration help
+PID_README.md                          550    25 min    Project overview
+────────────────────────────────────────────────────────────────────
+TOTAL PACKAGE                         4050    ~2 hrs    Full mastery
+
+(You don't need to read all files; choose based on your needs)
+
+================================================================================
+HOW TO USE THESE FILES
+================================================================================
+
+FOR FIRST FLIGHT:
+  1. Read QUICK_START_CHECKLIST.txt (start → finish)
+  2. Follow the steps
+  3. Come back only if problems occur
+
+FOR LEARNING:
+  1. Start with PID_GAINS_VISUAL_SUMMARY.txt
+  2. Read PID_Gains_250g_5inch.h (with your code editor open)
+  3. Reference PID_Tuning_Reference_Table.md while coding
+
+FOR TROUBLESHOOTING:
+  1. Identify symptom in QUICK_START_CHECKLIST.txt Part 6
+  2. Apply quick fix or refer to detailed guide
+  3. Reference PID_Tuning_Reference_Table.md for deep explanation
+
+FOR TUNING ITERATION:
+  1. Keep PID_GAINS_VISUAL_SUMMARY.txt open
+  2. Make 10% gain adjustment
+  3. Test for 2-3 minutes
+  4. Repeat or move to different gain
+  5. Document final settings
+
+================================================================================
+PRINTING RECOMMENDATIONS
+================================================================================
+
+For reference during testing, print:
+  ✓ QUICK_START_CHECKLIST.txt (4 pages, fold in half)
+  ✓ PID_GAINS_VISUAL_SUMMARY.txt (3 pages, color if possible)
+  ✓ Keep PID_Tuning_Reference_Table.md on laptop/tablet
+
+For permanent reference, create binder with:
+  ✓ All 9 files (best printing: color on both sides)
+  ✓ Tab dividers between sections
+  ✓ Tab labels: "Quick Start", "Reference", "Code", "Troubleshooting"
+
+================================================================================
+DIGITAL USAGE TIPS
+================================================================================
+
+Best practice: Keep files organized in VS Code
+  1. Open all 9 files in separate VS Code tabs
+  2. Use Tab bar to navigate quickly
+  3. Use Ctrl+F to search within files
+  4. Use Ctrl+G to jump to line in detailed docs
+
+Search tips (within a file):
+  "KP" → Find all proportional gain mentions
+  "oscillat" → Find oscillation-related content
+  "Example" → Jump to worked examples
+  "Symptom" → Find troubleshooting sections
+
+Organize by phase:
+  PHASE 1 - Getting Started:
+    Tab 1: QUICK_START_CHECKLIST.txt
+    Tab 2: PID_GAINS_VISUAL_SUMMARY.txt
+  
+  PHASE 2 - Code Integration:
+    Tab 3: PID_IMPLEMENTATION_READY.h
+    Tab 4: RateModeR4.ino (your code)
+  
+  PHASE 3 - Learning:
+    Tab 5: PID_Gains_250g_5inch.h
+    Tab 6: PID_Tuning_Reference_Table.md
+
+================================================================================
+VERSION CONTROL
+================================================================================
+
+Current Version: 1.0
+Date Created: April 7, 2026
+Platform: 250g quadcopter, 5" props, 6" arms, 1000 Hz control
+
+Files included:
+  ✓ INDEX_AND_QUICKLINKS.txt (this file)
+  ✓ QUICK_START_CHECKLIST.txt
+  ✓ PID_GAINS_VISUAL_SUMMARY.txt
+  ✓ PID_Gains_Summary.h
+  ✓ PID_IMPLEMENTATION_READY.h
+  ✓ PID_Gains_250g_5inch.h
+  ✓ PID_Tuning_Reference_Table.md
+  ✓ PID_Gains_Integration_Guide.cpp
+  ✓ PID_README.md
+
+Future versions might include:
+  [ ] PID tuning logs (template)
+  [ ] Performance monitoring code
+  [ ] Advanced filtering examples
+  [ ] Alternative controller structures
+  [ ] Platform-specific variants
+
+================================================================================
+GETTING HELP
+================================================================================
+
+Problem not covered? Check:
+  1. QUICK_START_CHECKLIST.txt Part 6 (common issues)
+  2. PID_Tuning_Reference_Table.md (comprehensive)
+  3. Search all files for keyword (Ctrl+Shift+F in VS Code)
+  4. Check comments in: PID_IMPLEMENTATION_READY.h
+
+Common answers:
+  Q: "Should I use these gains as-is?"
+  A: YES - they're already tuned for your platform. Test first!
+
+  Q: "My quad oscillates"
+  A: Increase KD (damping). See QUICK_START_CHECKLIST.txt Part 6
+
+  Q: "My quad is too slow"
+  A: Increase KP (response). Make 10% changes, test each.
+
+  Q: "Which file should I read?"
+  A: See "FILE LOOKUP BY TASK" section above.
+
+  Q: "How do I integrate this?"
+  A: Read QUICK_START_CHECKLIST.txt Part 3, or
+     copy from PID_IMPLEMENTATION_READY.h
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. Read QUICK_START_CHECKLIST.txt (right now - 5 minutes!)
+2. Decide: Test as-is vs modify
+3. Integrate gains into RateModeR4.ino
+4. Compile and test on real hardware
+5. Refer back to this index if you need different information
+6. Document your final configuration
+
+Ready? Open QUICK_START_CHECKLIST.txt and start! 🚁
+
+================================================================================
+END OF INDEX
+================================================================================
+

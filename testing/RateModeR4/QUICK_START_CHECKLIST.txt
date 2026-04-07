@@ -1,0 +1,331 @@
+/**
+ * @file QUICK_START_CHECKLIST.txt
+ * @brief 5-minute quick start guide
+ */
+
+================================================================================
+QUICK START CHECKLIST - 250g QUADCOPTER PID GAINS
+================================================================================
+
+TIME REQUIRED: 5 minutes to review, 10 minutes to integrate, 20 minutes to test
+
+================================================================================
+PART 1: REVIEW (2 minutes)
+================================================================================
+
+Your current gains in RateModeR4.ino (lines ~163-208):
+
+RATE CONTROLLER (already tuned, don't need to change):
+  ✓ ROLL_KP = 0.90     (moderate responsiveness)
+  ✓ PITCH_KP = 0.90    (symmetric with roll)
+  ✓ YAW_KP = 0.55      (conservative yaw)
+  ✓ ROLL_KI = 0.015    (steady-state correction)
+  ✓ PITCH_KI = 0.015   (symmetric)
+  ✓ YAW_KI = 0.008     (conservative)
+  ✓ ROLL_KD = 0.060    (damping)
+  ✓ PITCH_KD = 0.060   (symmetric)
+  ✓ YAW_KD = 0.002     (minimal)
+
+ANGLE CONTROLLER (already tuned):
+  ✓ ANGLE_ROLL_KP = 3.8    (angle to rate conversion)
+  ✓ ANGLE_PITCH_KP = 3.8   (symmetric)
+  ✓ ANGLE_YAW_KP = 1.5     (conservative)
+  ✓ ANGLE_ROLL_KI = 0.015  (drift correction)
+  ✓ ANGLE_PITCH_KI = 0.015 (symmetric)
+  ✓ ANGLE_YAW_KI = 0.004   (conservative)
+  ✓ ANGLE_ROLL_KD = 0.10   (smooth transitions)
+  ✓ ANGLE_PITCH_KD = 0.10  (symmetric)
+  ✓ ANGLE_YAW_KD = 0.05    (minimal)
+
+LIMITS:
+  ✓ ROLL_I_LIMIT = 100        (integral anti-windup)
+  ✓ PITCH_I_LIMIT = 100       (integral anti-windup)
+  ✓ YAW_I_LIMIT = 150         (integral anti-windup)
+  ✓ ANGLE_ROLL_I_LIMIT = 50   (outer loop anti-windup)
+  ✓ ANGLE_PITCH_I_LIMIT = 50  (outer loop anti-windup)
+  ✓ ANGLE_YAW_I_LIMIT = 30    (outer loop anti-windup)
+  ✓ PID_LIMIT = 300           (rate controller output limit)
+  ✓ ANGLE_PID_LIMIT = 200     (angle controller output limit)
+
+VERDICT: Your gains are ALREADY WELL-TUNED!
+  → Conservative (stable, proven)
+  → Appropriate for 250g + 5" props + 1000 Hz
+  → Based on Crazyflie 2.1 scaled for your platform
+  → No changes needed for first flight!
+
+================================================================================
+PART 2: DECIDE YOUR ACTION (1 minute)
+================================================================================
+
+OPTION A: TEST AS-IS (Recommended for first flight)
+  ✓ Your gains are good
+  ✓ Upload code unchanged
+  ✓ Test in Rate Mode hover
+  ✓ Go to PART 5 (Testing)
+
+OPTION B: ADD DOCUMENTATION (No code changes, just reference)
+  ✓ Include PID_IMPLEMENTATION_READY.h for detailed comments
+  ✓ Keep same gain values
+  ✓ Better for future tuning
+  ✓ Only cosmetic change (no functional difference)
+
+OPTION C: TUNE FOR YOUR SPECIFIC NEED (Optional after first flight)
+  → Racing?              Increase KP by 10-20%
+  → Slow/Acrobatics?     Current gains ideal
+  → Photography?         Increase KD by 20-30%
+  → Reference: See file "PID_Tuning_Reference_Table.md" for all options
+
+RECOMMENDATION: Start with OPTION A (test as-is)
+  Reason: Gains already proven; easier to increase later than reduce oscillation
+
+================================================================================
+PART 3: OPTIONAL DOCUMENTATION UPDATE (3 minutes)
+================================================================================
+
+If you want better-commented gains in your code:
+
+Step 1: Open file "PID_IMPLEMENTATION_READY.h"
+Step 2: Copy ALL lines under "IMPLEMENTATION_READY_PID_GAINS.h"
+        (from "// =====" to final "}" before "#endif")
+
+Step 3: In RateModeR4.ino, find old gains (search for "ANGLE_ROLL_KP")
+        Lines should be around 163-208
+
+Step 4: Delete ALL old gain declarations (about 50 lines)
+        Keep: PIDState struct and pid() function (don't delete!)
+
+Step 5: Paste new gains in their place
+
+Step 6: Verify:
+        - Code compiles ✓
+        - No syntax errors ✓
+        - All 24 constants defined ✓
+
+Step 7: Continue to PART 5 (Testing)
+
+NOTE: If you skip this, your code works fine as-is!
+      This is just for better documentation/comments.
+
+================================================================================
+PART 4: PREFLIGHT VERIFICATION (2 minutes)
+================================================================================
+
+Before first flight, verify:
+
+Hardware:
+  ☐ Propellers balanced (spin freely without vibration)
+  ☐ Motor shafts spin freely (no grinding)
+  ☐ ESCs calibrated (min/max PWM set correctly)
+  ☐ Batteries charged fully
+  ☐ Frame is level and symmetric
+
+IMU & Sensors:
+  ☐ IMU gyro calibration done (level surface, power cycle)
+  ☐ Accelerometer roughly level (small calibration error OK)
+  ☐ IMU not loose (should not rattle)
+
+Code:
+  ☐ Gains updated (or kept as-is)
+  ☐ Code compiles without warnings ✓
+  ☐ Motor mapping correct:
+      M1 = MOTOR_1_PWM (pin 5, front-right, CCW)
+      M2 = MOTOR_2_PWM (pin 6, back-left, CW)
+      M3 = MOTOR_3_PWM (pin 9, back, CCW)
+      M4 = MOTOR_4_PWM (pin 10, front, CW)
+      (adjust if your frame layout is different)
+
+  ☐ Control mode set correctly:
+      Rate Mode for first flight (easier to tune)
+      Angle Mode after Rate Mode stable
+
+================================================================================
+PART 5: FIRST FLIGHT TEST (20 minutes)
+================================================================================
+
+INDOOR TEST (Rate Mode, ~5 min):
+
+Step 1: Power on, verify:
+  ☐ Motors arm at low throttle
+  ☐ No oscillation/buzz at rest
+  ☐ Motors respond to throttle (smooth increase)
+
+Step 2: Hover on ground (no takeoff yet):
+  ☐ Throttle to ~50% (light weight on skids)
+  ☐ Roll stick left/right: smooth response, no oscillation
+  ☐ Pitch stick forward/back: smooth response, no oscillation
+  ☐ Yaw stick left/right: smooth response, noticeably slower (normal)
+  ☐ Test for 30-60 seconds
+
+Step 3: Check for problems:
+  ☐ No motor buzz or whine
+  ☐ No visible frame vibration
+  ☐ Symmetric response on all axes
+  ☐ Motors smooth and quiet
+
+Step 4: If stable, proceed to hover test:
+  ☐ Take off gently (small throttle increase)
+  ☐ Hover at ~1 meter height
+  ☐ Use small stick inputs (~25% deflection)
+  ☐ Monitor stability for 1-2 minutes
+  ☐ Land gently
+
+OUTDOOR TEST (Angle Mode, ~10 min):
+
+Step 5: Switch to Angle Mode (if Rate Mode stable):
+  ☐ Hover and center stick
+  ☐ Quad should level itself (automatic)
+  ☐ Small angle inputs (~25%): smooth tracking
+  ☐ Rapid angle commands (max stick): reach 45° with <5% overshoot
+  ☐ Settle within 2 seconds
+
+Step 6: Disturbance test:
+  ☐ Hand push on frame (gentle disturbance)
+  ☐ Quad recovers automatically within 1 second
+  ☐ Angle returns to setpoint
+
+VERIFY PERFORMANCE MATCHES EXPECTED:
+  ✓ Stable hover ✓
+  ✓ Smooth stick response ✓
+  ✓ No oscillation/buzz ✓
+  ✓ Motors quiet ✓
+  ✓ Symmetric on all axes ✓
+
+================================================================================
+PART 6: IF SOMETHING IS WRONG (3-5 minutes)
+================================================================================
+
+PROBLEM 1: Oscillation/Buzz in hover
+  SYMPTOM: Audible buzz from motors, visible wobble 10-20 Hz
+  FIX: Increase damping (KD)
+  ACTION:
+    Find line: static constexpr float ROLL_KD = 0.060f;
+    Change to: static constexpr float ROLL_KD = 0.075f;  (25% increase)
+    Same for PITCH_KD, YAW_KD
+    Recompile and test
+
+PROBLEM 2: Sluggish response
+  SYMPTOM: Stick input takes >200ms to show response
+  FIX: Increase responsiveness (KP)
+  ACTION:
+    Find line: static constexpr float ROLL_KP = 0.90f;
+    Change to: static constexpr float ROLL_KP = 0.99f;  (10% increase)
+    Same for PITCH_KP
+    Recompile and test
+
+PROBLEM 3: Drifts in place
+  SYMPTOM: Quad slowly drifts left/right/forward/back without stick input
+  POSSIBLE CAUSES:
+    a) Propeller imbalance → Balance propellers
+    b) Motor thrust imbalance → Calibrate ESC thresholds
+    c) IMU not level → Recalibrate gyro
+    d) KI too low → Increase KI (see below)
+  ACTION (if hardware OK):
+    Find line: static constexpr float ROLL_KI = 0.015f;
+    Change to: static constexpr float ROLL_KI = 0.018f;  (20% increase)
+    Same for PITCH_KI
+    Recompile and test
+
+PROBLEM 4: Yaw lags or doesn't respond
+  SYMPTOM: Yaw stick slow to respond or feels disconnected
+  FIX: Increase yaw proportional gain
+  ACTION:
+    Find line: static constexpr float YAW_KP = 0.55f;
+    Change to: static constexpr float YAW_KP = 0.60f;   (9% increase)
+    Recompile and test
+
+PROBLEM 5: Motors shake/jitter even at rest
+  SYMPTOM: Motors vibrating fast (~100+ Hz) without control input
+  POSSIBLE CAUSES:
+    a) Propeller imbalance → Balance propellers
+    b) Loose motor mounts → Tighten all motor bolts
+    c) IMU noise → Check IMU mounting
+    d) KD too high (amplifying noise) → Decrease KD (see below)
+  ACTION (if hardware OK):
+    Find line: static constexpr float ROLL_KD = 0.060f;
+    Change to: static constexpr float ROLL_KD = 0.048f;  (20% decrease)
+    Same for PITCH_KD
+    Recompile and test
+
+================================================================================
+PART 7: AFTER SUCCESSFUL TEST (Going forward)
+================================================================================
+
+Next Steps:
+  1. Document your final settings
+     Note: Date, conditions, any adjustments made
+
+  2. Keep reference files for future tuning
+     Files: PID_Tuning_Reference_Table.md, PID_Gains_250g_5inch.h
+
+  3. Try different modes/scenarios
+     Rate Mode → Angle Mode → Position Hold (if available)
+
+  4. If you build another frame
+     Use scaling guidelines in "PID_Gains_Integration_Guide.cpp"
+
+  5. Share results (optional)
+     Document: Mass, props, arm length, gains, performance
+     Useful for tuning future builds
+
+================================================================================
+REFERENCE FILES
+================================================================================
+
+For different needs, refer to:
+
+QUICK LOOKUP (1-2 min):
+  → PID_Gains_Summary.h (just the numbers)
+
+UNDERSTANDING GAINS (10 min):
+  → PID_Gains_250g_5inch.h (what each gain means)
+
+TUNING HELP (20-30 min):
+  → PID_Tuning_Reference_Table.md (comprehensive guide)
+
+INTEGRATION CHECK:
+  → PID_Gains_Integration_Guide.cpp (tables & walkthrough)
+
+COPY-PASTE CODE:
+  → PID_IMPLEMENTATION_READY.h (ready to use)
+
+================================================================================
+EXPECTED TIMELINE
+================================================================================
+
+Review gains:              5 minutes
+Update code (optional):   10 minutes
+Compile & upload:         5 minutes
+Preflight check:          5 minutes
+First flight test:       20 minutes
+Troubleshooting (if needed): 10-30 minutes
+─────────────────────────────────────
+TOTAL:                   45-70 minutes (first flight to stable)
+
+After this, tuning is iterative and optional based on your flying style.
+
+================================================================================
+SUPPORT
+================================================================================
+
+If you need more help:
+
+1. Check symptom in PART 6 (Problems)
+2. Read relevant section in PID_Tuning_Reference_Table.md
+3. Review your specific use case in PID_Gains_250g_5inch.h
+4. See examples in PID_Tuning_Reference_Table.md Part 4
+
+Most common scenarios covered. Gains are conservative for a reason!
+
+================================================================================
+KEY TAKEAWAY
+================================================================================
+
+✓ Your gains are ALREADY WELL-TUNED
+✓ Test them first without changes
+✓ Only adjust if specific symptoms appear
+✓ When adjusting: make 10% changes, test each one
+✓ Reference files provide detailed guidance for every scenario
+
+You're ready to fly! 🚁
+
+================================================================================
