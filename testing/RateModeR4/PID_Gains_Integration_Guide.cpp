@@ -317,4 +317,3 @@ Scaling factors:
   - Always verify via testing; no formula is perfect
 */
 
-#endif // Example code ends here

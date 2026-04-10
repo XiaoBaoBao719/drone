@@ -16,6 +16,11 @@ MPU6050Plus::MPU6050Plus()
     for (size_t i = 0; i < sizeof(filters) / sizeof(filters[0]); ++i) {
         filters[i] = nullptr;
     }
+
+    /* Establish cutoff and sampling frequency for low pass filters */
+    for (size_t n =0; n < sizeof(lpFilters)/sizeof(lpFilters[0]); n++ ) {
+        lpFilters[n] = nullptr;
+    }
 }
 
 MPU6050Plus::MPU6050Plus(uint8_t devAddr_, TwoWire *wireObj_, float sampleT)
@@ -49,6 +54,13 @@ void MPU6050Plus::initialize(uint8_t devAddr_, TwoWire *wireObj_, float sampleT)
     for (size_t n = 0; n < sizeof(filters)/sizeof(filters[0]); n++ ) {
         filters[n] = new FilterOnePole(LOWPASS, FILTER_SAMPLING_FREQ);
     }
+
+    lpFilters[0] = new LowPassFilter<2>(AX_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ); // accX
+    lpFilters[1] = new LowPassFilter<2>(AY_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ); // accY
+    lpFilters[2] = new LowPassFilter<2>(AZ_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ); // accZ
+    lpFilters[3] = new LowPassFilter<2>(GX_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ); // gyroX
+    lpFilters[4] = new LowPassFilter<2>(GY_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ); // gyroY
+    lpFilters[5] = new LowPassFilter<2>(GZ_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ); // gyroZ
 }
 
 void MPU6050Plus::configureGyroScale(GYRO_SCALE scale)
@@ -211,6 +223,10 @@ void MPU6050Plus::updateRawMeasurements() {
     gyroX = _gx_raw / this->getGyroScaleFactor();
     gyroY = _gy_raw / this->getGyroScaleFactor();
     gyroZ = _gz_raw / this->getGyroScaleFactor();
+
+    gyroX = lpFilters[3]->filter(gyroX);
+    gyroY = lpFilters[4]->filter(gyroY);
+    gyroZ = lpFilters[5]->filter(gyroZ);
 
     if (invertedX) gyroX = gyroX * -1;
     if (invertedY) gyroY = gyroY * -1;

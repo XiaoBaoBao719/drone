@@ -6,6 +6,7 @@
 #include <Wire.h>
 #include <BasicLinearAlgebra.h>
 #include <Filters.h>
+#include <LowPassFilter.h>
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -96,10 +97,17 @@ enum IMU_OUTPUT_TYPE {
 };
 
 /* Filtering settings */
-const float FILTER_SAMPLING_FREQ = 100;
+const float FILTER_SAMPLING_FREQ = 1000;
 const float FILTER_AMPLITUDE = 100;
 const float FILTER_OFFSET = 100;
 const float FILTER_WINDOW_LENGTH = 20.0 / FILTER_SAMPLING_FREQ;
+
+const float AX_LP_CUTOFF_FREQ = 5.0;
+const float AY_LP_CUTOFF_FREQ = 5.0;
+const float AZ_LP_CUTOFF_FREQ = 5.0;
+const float GX_LP_CUTOFF_FREQ = 5.0;
+const float GY_LP_CUTOFF_FREQ = 5.0;
+const float GZ_LP_CUTOFF_FREQ = 5.0;
 
 /* Orientation - Quaterion form TODO*/
 struct quaternion{
@@ -148,6 +156,8 @@ class MPU6050Plus
 {
 private:
     FilterOnePole *filters[6];                  // create (RC) filters for each measurement channel
+    LowPassFilter<2> *lpFilters[6];            // create 2nd order low pass filters for each measurement channel
+
     ImuPoint *currMeas;
     ImuPoint *lastMeas;
     float fused_meas[3];                        // rpy (x,y,z) format

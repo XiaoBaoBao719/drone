@@ -607,18 +607,25 @@ void updateControllers() {
                           yawAnglePID);
 
   pidRollRate   = pid(pidRollAngle, angleRateX, ROLL_KP, ROLL_KI, ROLL_KD,
-                          CONTROL_LOOP_TIME_SEC, ROLL_I_LIMIT, PID_LIMIT, rollRatePID);
+                          CONTROL_LOOP_TIME_SEC, ROLL_I_LIMIT, PID_LIMIT, 
+                          rollRatePID);
 
   pidPitchRate  = pid(pidPitchAngle, angleRateY, PITCH_KP, PITCH_KI, PITCH_KD,
-                           CONTROL_LOOP_TIME_SEC, PITCH_I_LIMIT, PID_LIMIT, pitchRatePID);
+                           CONTROL_LOOP_TIME_SEC, PITCH_I_LIMIT, PID_LIMIT, 
+                           pitchRatePID);
 
   pidYawRate    = pid(pidYawAngle, angleRateZ, YAW_KP, YAW_KI, YAW_KD,
-                         CONTROL_LOOP_TIME_SEC, YAW_I_LIMIT, PID_LIMIT, yawRatePID);
+                         CONTROL_LOOP_TIME_SEC, YAW_I_LIMIT, PID_LIMIT, 
+                         yawRatePID);
   // Serial.println("thr: " + String(input_throttle) + "\tpidX: " + String(pid_out_x) + "\tpidY: " + String(pid_out_y) + "\tpidZ: " + String(pid_out_z));
   // Serial.println();
 
 #if DEBUG_PID
-  Serial.print("throttle:");    Serial.print(rcThrottle);
+  // Serial.print("throttle:");    Serial.print(rcThrottle);
+  Serial.print(",pid_angle_x:");  Serial.print(pidRollAngle);
+  Serial.print(",pid_angle_y:");  Serial.print(pidPitchAngle);
+  Serial.print(",pid_angle_z:");  Serial.print(pidYawAngle);
+
   Serial.print(",pid_out_x:");  Serial.print(pidRollRate);
   Serial.print(",pid_out_y:");  Serial.print(pidPitchRate);
   Serial.print(",pid_out_z:");  Serial.print(pidYawRate);
