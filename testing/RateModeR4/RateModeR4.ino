@@ -775,8 +775,30 @@ void setup() {
     }
   }
   Serial.println("IMU initialized and verified.");
-  // Calibrate the IMU accel/gyro offsets
-  imu.calibrateIMU();
+  /* Calibrate the IMU accel/gyro offsets if not known */
+  // bool calibrationResult = imu.calibrateIMU();
+  // imu.setCalibrated(calibrationResult);
+
+  /* If the calibration offsets are known, apply them here */
+  // imu.setOffsetAccX(-981);
+  // imu.setOffsetAccY(-307);
+  // imu.setOffsetAccZ(1209);
+  // imu.setOffsetGyroX(-4);
+  // imu.setOffsetGyroY(-36);
+  // imu.setOffsetGyroZ(-36);
+  imu.setOffsetAccX(-1036);
+  imu.setOffsetAccY(-359);
+  imu.setOffsetAccZ(1225);
+  imu.setOffsetGyroX(-3);
+  imu.setOffsetGyroY(-31);
+  imu.setOffsetGyroZ(-38);
+
+  imu.setCalibrated(true);
+
+  imu.invertY();
+  imu.invertZ();
+  
+
   Serial.println("IMU calibrated");
 
   /** ============================================================

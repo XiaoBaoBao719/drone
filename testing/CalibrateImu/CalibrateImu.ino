@@ -123,39 +123,23 @@ void setup() {
   /* Print Gyro and Accel configs */
 
   /* Perform calibration */
-  // imu.calibrateIMU();
+  imu.calibrateIMU();
   // imu.calcOffsets();
   // mpu.CalibrateAccel(20);
   // mpu.CalibrateGyro(20);
-    // imu.setOffsetAccX(-981);
-    // imu.setOffsetAccY(-307);
-    // imu.setOffsetAccZ(1209);
-    // imu.setOffsetGyroX(-4);
-    // imu.setOffsetGyroY(-36);
-    // imu.setOffsetGyroZ(-36);
 
-      imu.setOffsetAccX(-1036);
-  imu.setOffsetAccY(-359);
-  imu.setOffsetAccZ(1225);
-  imu.setOffsetGyroX(-3);
-  imu.setOffsetGyroY(-31);
-  imu.setOffsetGyroZ(-38);
-
-
-    imu.setCalibrated(false);
-
-  // imu.invertY();
-  imu.invertZ();
+  // imu.invertZ();
 
   imu.printInvertedAxes();
 
-  // Serial.print("offset_acc_x:");
-  // Serial.print(imu.getOffsetAccX());
-  // Serial.print(",offset_acc_y:");
-  // Serial.print(imu.getOffsetAccY());
-  // Serial.print(",offset_acc_z:");
-  // Serial.println(imu.getOffsetAccZ());
-
+  Serial.println("+++++++++++++++++++++ IMU  CALIBRATION OFFSETS ++++++++++++++++++++++++");
+  Serial.print("offset_acc_x:");  Serial.print(imu.getOffsetAccX());    Serial.print("\t");
+  Serial.print(",offset_acc_y:"); Serial.print(imu.getOffsetAccY());    Serial.print("\t");
+  Serial.print(",offset_acc_z:"); Serial.print(imu.getOffsetAccZ());        Serial.print("\n");
+  Serial.print(",offset_gyro_x:");Serial.print(imu.getOffsetGyroX());   Serial.print("\t");
+  Serial.print(",offset_gyro_y:");Serial.print(imu.getOffsetGyroY());   Serial.print("\t");
+  Serial.print(",offset_gyro_z:");Serial.print(imu.getOffsetGyroZ());   Serial.print("\n");
+  Serial.println("++++++++++++++++++++++++++++++ OFFSETS ++++++++++++++++++++++++");
   delay(3000);
 }
 
@@ -163,70 +147,5 @@ float q_[4];
 
 void loop() {
 
-  // Update measurements at 100 hz
-  currMillis = millis();
-  if (currMillis - prevMillis >= interval) {
-    prevMillis = currMillis;
-
-    imu.updateRawMeasurements();
-    imu.complementaryFilter();
-  }
-
-  if ((millis() - print_ts) > interval) {
-    // Serial.print("raw_acc_X:");
-    // Serial.print(imu.getAccXRaw());
-    // Serial.print(",raw_acc_Y:");
-    // Serial.print(imu.getAccYRaw());
-    // Serial.print(",raw_acc_Z:");
-    // Serial.println(imu.getAccZRaw());
-
-    // Serial.print("acc_X:");
-    // Serial.print(imu.getAccX());
-    // Serial.print(",acc_Y:");
-    // Serial.print(imu.getAccY());
-    // Serial.print(",acc_Z:");
-    // Serial.println(imu.getAccZ());
-
-    // Serial.print("gyro_X:");
-    // Serial.print(imu.getGyroX());
-    // Serial.print(",gyro_Y:");
-    // Serial.print(imu.getGyroY());
-    // Serial.print(",gyro_Z:");
-    // Serial.print(imu.getGyroZ());
-    // Serial.println();
-
-    // Serial.print("X:");
-    // Serial.print(imu.getAngleX());
-    // Serial.print(",Y:");
-    Serial.print(imu.getAngleY());
-    // Serial.print(",Z:");
-    // Serial.print(imu.getAngleZ());
-    Serial.println();
-
-    // imu.printInvertedAxes();
-
-    // float* q = imu.angleAxisQuaternion();
-    // euler_to_quaternion(q_, imu.getAngleZ(), imu.getAngleY(), imu.getAngleX());
-    // Serial.print(q_[0], 2); Serial.print(",");
-    // Serial.print(q_[1], 2); Serial.print(",");
-    // Serial.print(q_[2], 2); Serial.print(",");
-    // Serial.print(q_[3], 2); Serial.print("\n");
-
-    //   Serial.print("biasx:");
-    // Serial.print(imu.getBiasGyroX());
-    // Serial.print("biasy:");
-    // Serial.print(imu.getBiasGyroY());
-    // Serial.print("biasz:");
-    // Serial.println(imu.getBiasGyroZ());
-    print_ts = millis();
-  }
-
-  // wait for control timer loop to finish
-  // while (micros() - loopTimer < IMU_SAMPLE_FREQ_MS) {
-  //   loopTimer = micros();
-  // }
-}
-
-void doThing() {
-  // pass
+ 
 }

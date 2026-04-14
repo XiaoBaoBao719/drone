@@ -74,7 +74,7 @@
 #define LP_FILTER_DEGREE 5
 
 /* State Estimate Params */
-const float COMPLEMENTARY_ALPHA = 0.95; // 0.05;
+const float COMPLEMENTARY_ALPHA = 0.98; // 0.05;
 
 enum GYRO_SCALE {
     MPU_GYR_250,
@@ -95,19 +95,6 @@ enum IMU_OUTPUT_TYPE {
     EULER_ANGLE,
     QUATERNION
 };
-
-/* Filtering settings */
-const float FILTER_SAMPLING_FREQ = 1000;
-const float FILTER_AMPLITUDE = 100;
-const float FILTER_OFFSET = 100;
-const float FILTER_WINDOW_LENGTH = 20.0 / FILTER_SAMPLING_FREQ;
-
-const float AX_LP_CUTOFF_FREQ = 5.0;
-const float AY_LP_CUTOFF_FREQ = 5.0;
-const float AZ_LP_CUTOFF_FREQ = 5.0;
-const float GX_LP_CUTOFF_FREQ = 5.0;
-const float GY_LP_CUTOFF_FREQ = 5.0;
-const float GZ_LP_CUTOFF_FREQ = 5.0;
 
 /* Orientation - Quaterion form TODO*/
 struct quaternion{
@@ -130,15 +117,12 @@ struct ImuPoint {
     float ax_raw = 0.0;
     float ay_raw = 0.0;
     float az_raw = 0.0;
-
     float gx_raw = 0.0;
     float gy_raw = 0.0;
     float gz_raw = 0.0;
-
     float ax = 0.0;
     float ay = 0.0;
     float az = 0.0;
-
     float gx = 0.0;
     float gy = 0.0;
     float gz = 0.0;
@@ -156,18 +140,21 @@ class MPU6050Plus
 {
 private:
     FilterOnePole *filters[6];                  // create (RC) filters for each measurement channel
-    LowPassFilter<2> *lpFilters[6];            // create 2nd order low pass filters for each measurement channel
+    LowPassFilter<2> lpFilters[6];            // create 2nd order low pass filters for each measurement channel
+    // LowPassFilter<2> lpfAx;
 
     ImuPoint *currMeas;
     ImuPoint *lastMeas;
     float fused_meas[3];                        // rpy (x,y,z) format
     static constexpr float start_time = 0.0;
-    float dT = 0.01;                            // imu sampling timestep 100 Hz default
+    float dT = 0.01;                            // IMU SAMPLING TIME 100 Hz default
     static constexpr unsigned long preInterval = 0;
 
     bool invertedX = false;
     bool invertedY = false;
     bool invertedZ = false;
+
+    /* Sensor State Information */
 
     float rawAccX, rawAccY, rawAccZ;
     float rawGyroX, rawGyroY, rawGyroZ;
@@ -189,8 +176,8 @@ private:
     /* IMU offsets */
     static constexpr uint16_t ACCEL_DEADZONE = 8; // 8 LSBs is ~0.25 mg, which is roughly the noise level of the aceelerometer
     static constexpr uint16_t GYRO_DEADZONE = 1; // 1 LSB is ~0.0076 deg/s, which is roughly the noise level of the gyros
-    static constexpr uint16_t CAL_BUFFER_LEN = 100; // number of measurements to collect for calibration
-    static constexpr uint16_t NUM_ELEM_SKIP = 20; // number of initial measurements to skip for calibration (to let the filter settle)
+    static constexpr uint16_t CAL_BUFFER_LEN = 1000; // number of measurements to collect for calibration
+    static constexpr uint16_t NUM_ELEM_SKIP = 50; // number of initial measurements to skip for calibration (to let the filter settle)
     int32_t offset_ax = 0;
     int32_t offset_ay = 0;
     int32_t offset_az = 0;
@@ -206,7 +193,26 @@ private:
     uint8_t buffer[6] = {0};
     uint8_t getDeviceID();
 
+    /* Miscellaneous */
+    bool imuCalibrated = false;
+
 public:
+
+        /* Filtering settings */
+    const float FILTER_SAMPLING_FREQ = 1 / dT; // 100 Hz
+    const float FILTER_AMPLITUDE = 100;
+    const float FILTER_OFFSET = 100;
+    const float FILTER_WINDOW_LENGTH = 20.0 / FILTER_SAMPLING_FREQ;
+
+    const float AX_LP_CUTOFF_FREQ = 5.0;          // 0.3;
+    const float AY_LP_CUTOFF_FREQ = 5.0;          // 0.3;
+    const float AZ_LP_CUTOFF_FREQ = 5.0;
+    const float GX_LP_CUTOFF_FREQ = 2.0;          // 0.5;
+    const float GY_LP_CUTOFF_FREQ = 1.0;          // 0.1;
+    // const float GY_LP_CUTOFF_FREQ = 5.0;
+    // const float GY_LP_CUTOFF_FREQ = 50.0;
+    const float GZ_LP_CUTOFF_FREQ = 5.0;
+
     MPU6050Plus();
     MPU6050Plus(uint8_t devAddr_, TwoWire *wireObj_, float sampleT = 0.01);
     void initialize(uint8_t devAddr, TwoWire *wireObj, float sampleT);
@@ -220,24 +226,27 @@ public:
     void setFullScaleAccelRange(uint8_t range);
     void setClockSource(uint8_t source);
     void setSleepEnabled(bool enabled);
-    void setXGyroOffset(int16_t offset);
-    void setYGyroOffset(int16_t offset); 
-    void setZGyroOffset(int16_t offset);
-    void setXAccelOffset(int16_t offset);
-    void setYAccelOffset(int16_t offset);
-    void setZAccelOffset(int16_t offset);
+    void _setXGyroOffset(int16_t offset);
+    void _setYGyroOffset(int16_t offset); 
+    void _setZGyroOffset(int16_t offset);
+    void _setXAccelOffset(int16_t offset);
+    void _setYAccelOffset(int16_t offset);
+    void _setZAccelOffset(int16_t offset);
 
     void filterMeasurements(float data[]);
     void getMeasurementAvgs(float data[], size_t size);
     void calibrate_(float data[], size_t size);
     bool calibrateIMU();
+    void resetCalibration();
+    void setCalibrated(bool calibrated) { imuCalibrated = calibrated; }
+    bool getCalibrated() { return imuCalibrated; }
     // void getMeasurement(ImuPoint *point);
     // void getMeasurementRaw(float data[]);
     void updateRawMeasurements();
 
     /* State estimation algorithms */
-    void complementaryFilter();         // calculate and update attitude using complementary filter
-    // void kalmanFilter();                // calculate and update attitude using kalman filter
+    void complementaryFilter();                     // Calculate and update attitude using Complementary Filter
+    // void kalmanFilter();                         // Calculate and update attitude using Linear Kalman Filter
 
     /* Gyro axis-inversion setters */
     void invertAxis(int axis);
@@ -277,6 +286,13 @@ public:
     float getAngleZ() { return angleZ; }        // angle z in degs
 
     float* angleAxisQuaternion();
+
+    void setOffsetGyroX(int16_t offset);
+    void setOffsetGyroY(int16_t offset);
+    void setOffsetGyroZ(int16_t offset);
+    void setOffsetAccX(int16_t offset);
+    void setOffsetAccY(int16_t offset);
+    void setOffsetAccZ(int16_t offset);
 
     inline int16_t getOffsetGyroX() { return offset_gx; }
     inline int16_t getOffsetGyroY() { return offset_gy; }

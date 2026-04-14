@@ -18,9 +18,18 @@ MPU6050Plus::MPU6050Plus()
     }
 
     /* Establish cutoff and sampling frequency for low pass filters */
-    for (size_t n =0; n < sizeof(lpFilters)/sizeof(lpFilters[0]); n++ ) {
-        lpFilters[n] = nullptr;
-    }
+    // for (size_t n =0; n < sizeof(lpFilters)/sizeof(lpFilters[0]); n++ ) {
+    //     lpFilters[n] = nullptr;
+    // }
+
+    // lpfAx = LowPassFilter<2>(AX_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, true); // accX
+
+    lpFilters[0] = LowPassFilter<2>(AX_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // accX
+    lpFilters[1] = LowPassFilter<2>(AY_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // accY
+    lpFilters[2] = LowPassFilter<2>(AZ_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // accZ
+    lpFilters[3] = LowPassFilter<2>(GX_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // gyroX
+    lpFilters[4] = LowPassFilter<2>(GY_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // gyroY
+    lpFilters[5] = LowPassFilter<2>(GZ_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // gyroZ
 }
 
 MPU6050Plus::MPU6050Plus(uint8_t devAddr_, TwoWire *wireObj_, float sampleT)
@@ -55,12 +64,12 @@ void MPU6050Plus::initialize(uint8_t devAddr_, TwoWire *wireObj_, float sampleT)
         filters[n] = new FilterOnePole(LOWPASS, FILTER_SAMPLING_FREQ);
     }
 
-    lpFilters[0] = new LowPassFilter<2>(AX_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ); // accX
-    lpFilters[1] = new LowPassFilter<2>(AY_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ); // accY
-    lpFilters[2] = new LowPassFilter<2>(AZ_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ); // accZ
-    lpFilters[3] = new LowPassFilter<2>(GX_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ); // gyroX
-    lpFilters[4] = new LowPassFilter<2>(GY_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ); // gyroY
-    lpFilters[5] = new LowPassFilter<2>(GZ_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ); // gyroZ
+    lpFilters[0] = LowPassFilter<2>(AX_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // accX
+    lpFilters[1] = LowPassFilter<2>(AY_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // accY
+    lpFilters[2] = LowPassFilter<2>(AZ_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // accZ
+    lpFilters[3] = LowPassFilter<2>(GX_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // gyroX
+    lpFilters[4] = LowPassFilter<2>(GY_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // gyroY
+    lpFilters[5] = LowPassFilter<2>(GZ_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // gyroZ
 }
 
 void MPU6050Plus::configureGyroScale(GYRO_SCALE scale)
@@ -157,7 +166,7 @@ void MPU6050Plus::updateRawMeasurements() {
     float angleGyroX, angleGyroY, angleGyroZ;
     float data[6];
 
-    /* +++++ Read raw accel values +++++ */
+    /* +++++ READ RAW ACCEL VALUES +++++ */
     getAcceleration(&_ax_raw,&_ay_raw,&_az_raw);
 
     // rawAccX = _ax_raw - this->getOffsetAccX();
@@ -177,44 +186,53 @@ void MPU6050Plus::updateRawMeasurements() {
     accY = (_ay_raw / this->getAccScaleFactor() ) * G;  // y
     accZ = (_az_raw / this->getAccScaleFactor() ) * G;  // z
 
+    if (imuCalibrated) {
+        /* Apply Low Pass Filters to Accelerometer if sensors are calibrated */
+        accX = lpFilters[0].filter(accX);
+        accY = lpFilters[1].filter(accY);
+        accZ = lpFilters[2].filter(accZ);
+    
+        // /* Apply a Moving Average Filter to the accelerometer values
+        // /* the new reading and the last LP_FILTER_DEGREE filtered readings
+        // /* via a simple moving average filter (which is a type of low pass filter) */
+        // float _filtAccX = accX;
+        // float _filtAccY = accY;
+        // float _filtAccZ = accZ;
+        // for(int i = 0; i < LP_FILTER_DEGREE; i++)
+        // {
+        //     _filtAccX += accXHist[i];
+        //     _filtAccY += accYHist[i];
+        //     _filtAccZ += accZHist[i];
+        // }
+        
+        // filtAccX = _filtAccX / (LP_FILTER_DEGREE + 1);
+        // filtAccY = _filtAccY / (LP_FILTER_DEGREE + 1);
+        // filtAccZ = _filtAccZ / (LP_FILTER_DEGREE + 1);
+
+        // // Update the history arrays with the new filtered value
+        // accXHist[lpFilterIndex] = filtAccX;
+        // accYHist[lpFilterIndex] = filtAccY;
+        // accZHist[lpFilterIndex] = filtAccZ;
+
+        // // make the history buffers act as ring buffers
+        // lpFilterIndex++;
+        // if(lpFilterIndex == LP_FILTER_DEGREE)
+        // {
+        //     lpFilterIndex = 0;
+        // }
+
+        // accX = filtAccX;
+        // accY = filtAccY;
+        // accZ = filtAccZ;
+    }
+
     if (invertedX) accX = accX * -1;
     if (invertedY) accY = accY * -1;
     if (invertedZ) accZ = accZ * -1;
 
-    // Calculate filtered accelerometer values as the average of
-    // the new reading and the last LP_FILTER_DEGREE filtered readings
-    float _filtAccX = accX;
-    float _filtAccY = accY;
-    float _filtAccZ = accZ;
-    for(int i = 0; i < LP_FILTER_DEGREE; i++)
-    {
-        _filtAccX += accXHist[i];
-        _filtAccY += accYHist[i];
-        _filtAccZ += accZHist[i];
-    }
-    
-    filtAccX = _filtAccX / (LP_FILTER_DEGREE + 1);
-    filtAccY = _filtAccY / (LP_FILTER_DEGREE + 1);
-    filtAccZ = _filtAccZ / (LP_FILTER_DEGREE + 1);
-
-    // Update the history arrays with the new filtered value
-    accXHist[lpFilterIndex] = filtAccX;
-    accYHist[lpFilterIndex] = filtAccY;
-    accZHist[lpFilterIndex] = filtAccZ;
-
-    // make the history buffers act as ring buffers
-    lpFilterIndex++;
-    if(lpFilterIndex == LP_FILTER_DEGREE)
-    {
-        lpFilterIndex = 0;
-    }
-
-    /* +++++ Read raw gyro values +++++ */
+    /* +++++ READ RAW GYRO VALUES +++++ */
     getRotation(&_gx_raw,&_gy_raw,&_gz_raw);
 
-    // rawGyroX = _gx_raw - this->getOffsetGyroX();
-    // rawGyroY = _gy_raw - this->getOffsetGyroY();
-    // rawGyroZ = _gz_raw - this->getOffsetGyroZ();
     rawGyroX = _gx_raw;
     rawGyroY = _gy_raw;
     rawGyroZ = _gz_raw;
@@ -224,9 +242,12 @@ void MPU6050Plus::updateRawMeasurements() {
     gyroY = _gy_raw / this->getGyroScaleFactor();
     gyroZ = _gz_raw / this->getGyroScaleFactor();
 
-    gyroX = lpFilters[3]->filter(gyroX);
-    gyroY = lpFilters[4]->filter(gyroY);
-    gyroZ = lpFilters[5]->filter(gyroZ);
+    /* Apply Low Pass Filters to Gyro if sensors are calibrated */
+    if (imuCalibrated) {
+        gyroX = lpFilters[3].filter(gyroX);
+        gyroY = lpFilters[4].filter(gyroY);
+        gyroZ = lpFilters[5].filter(gyroZ);
+    }
 
     if (invertedX) gyroX = gyroX * -1;
     if (invertedY) gyroY = gyroY * -1;
@@ -251,12 +272,11 @@ void MPU6050Plus::complementaryFilter() {
     // this->filterMeasurements( data );
 
     /* Calculate angleAcc measurements using filtered Acc values */
-    angleAccY = atan2( -filtAccX, 
-                       sqrt( filtAccY * filtAccY + filtAccZ * filtAccZ ) ) * RAD_2_DEG;    // Calculate pitch tilt angle from accel in degs
+    angleAccY = atan2( -accX, 
+                       sqrt( accY * accY + accZ * accZ ) ) * RAD_2_DEG;    // Calculate pitch tilt angle from accel in degs
     
-    // angleAccX = atan2(filtAccY, filtAccZ) * RAD_2_DEG;                                     // Calculate the roll tilt angle from accel in degs
-    angleAccX = atan2( filtAccY , sqrt( filtAccZ * filtAccZ + filtAccX * filtAccX ) ) * RAD_2_DEG;  // Calculate the roll tilt angle from accel in degs
-
+    // angleAccX = atan2(accY, accZ) * RAD_2_DEG;                                     // Calculate the roll tilt angle from accel in degs
+    angleAccX = atan2( accY , sqrt( accZ * accZ + accX * accX ) ) * RAD_2_DEG;  // Calculate the roll tilt angle from accel in degs
     // unsigned long Tnew = millis();
     // float dt = (Tnew - preInterval) * 1e-3;
     // preInterval = Tnew;
@@ -276,19 +296,10 @@ void MPU6050Plus::complementaryFilter() {
     // Update angles with accelerometer values
     angleX = (COMPLEMENTARY_ALPHA * angleX) + (1.0 - COMPLEMENTARY_ALPHA) * angleAccX;
     angleY = (COMPLEMENTARY_ALPHA * angleY) + (1.0 - COMPLEMENTARY_ALPHA) * angleAccY;
-
-
-    // angleX = (invertedX) ? -1 * angleX : angleX;
-    // angleY = (invertedY) ? -1 * angleY : angleY;
-    // angleZ = (invertedZ) ? -1 * angleZ : angleZ;
-    // Wrap angles to -180 to +180 deg
-    // angleX = wrapAngleDeg(angleX);
-    // angleY = wrapAngleDeg(angleY);
-    // angleZ = wrapAngleDeg(angleZ);
 }
 
 /**
- * @brief
+ * @brief 
  */
 void MPU6050Plus::filterMeasurements(float data[])
 {
@@ -324,10 +335,6 @@ void MPU6050Plus::getMeasurementAvgs(float data[], size_t size)
             buff_gy = buff_gy + rawGyroY;
             buff_gz = buff_gz + rawGyroZ;
         }
-        // Serial.println("Collecting measurements...");
-        // Serial.print("Measurement count: ");
-        // Serial.println(measCount);
-
         measCount++;
         // delay(2);
     }
@@ -371,12 +378,12 @@ void MPU6050Plus::calibrate_(float data[], size_t size)
     Serial.println(logBuffer);
     while (true) {
             
-        setXAccelOffset(offset_ax);
-        setYAccelOffset(offset_ay);
-        setZAccelOffset(offset_az);
-        setXGyroOffset(offset_gx);
-        setYGyroOffset(offset_gy);
-        setZGyroOffset(offset_gz);
+        _setXAccelOffset(offset_ax);
+        _setYAccelOffset(offset_ay);
+        _setZAccelOffset(offset_az);
+        _setXGyroOffset(offset_gx);
+        _setYGyroOffset(offset_gy);
+        _setZGyroOffset(offset_gz);
 
         this->getMeasurementAvgs(data, size);
 
@@ -426,7 +433,8 @@ void MPU6050Plus::calibrate_(float data[], size_t size)
 
         if (debug_counter % 100 == 0) {
             Serial.print("Number of sensors ready: ");  Serial.println(numSensorsReady);
-            sprintf(logBuffer, "offset_az: %.2f", (getAccScaleFactor() - data[2]) );
+            sprintf(logBuffer, "calibrating imu..." );
+            // sprintf(logBuffer, "offset_az: %.2f", (getAccScaleFactor() - data[2]) );
             // sprintf(logBuffer, "...> Number of sensors ready: %d", numSensorsReady);
             Serial.println(logBuffer);
         }
@@ -452,6 +460,20 @@ bool MPU6050Plus::calibrateIMU() {
     calibrate_(data, elements);
     Serial.println("Calibration complete.");
     return true;
+}
+
+/**
+ * @brief Reset the IMU's offsets to zero and mark the IMU as uncalibrated.
+ * 
+ */
+void MPU6050Plus::resetCalibration() {
+        offset_ax = 0;
+        offset_ay = 0;
+        offset_az = 0;
+        offset_gx = 0;
+        offset_gy = 0;
+        offset_gz = 0;
+        imuCalibrated = false;
 }
 
 /**
@@ -537,28 +559,58 @@ void MPU6050Plus::setSleepEnabled(bool enabled) {
     I2Cdev::writeBit(devAddr, MPU6050_RA_PWR_MGMT_1, MPU6050_PWR1_SLEEP_BIT, enabled, wireObj);
 }
 
-void MPU6050Plus::setXGyroOffset(int16_t offset) {
+void MPU6050Plus::_setXGyroOffset(int16_t offset) {
     I2Cdev::writeWord(devAddr, MPU6050_RA_XG_OFFS_USRH, offset, wireObj);
 }
 
-void MPU6050Plus::setYGyroOffset(int16_t offset) {
+void MPU6050Plus::_setYGyroOffset(int16_t offset) {
     I2Cdev::writeWord(devAddr, MPU6050_RA_YG_OFFS_USRH, offset, wireObj);
 }
 
-void MPU6050Plus::setZGyroOffset(int16_t offset) {
+void MPU6050Plus::_setZGyroOffset(int16_t offset) {
     I2Cdev::writeWord(devAddr, MPU6050_RA_ZG_OFFS_USRH, offset, wireObj);
 }
 
-void MPU6050Plus::setXAccelOffset(int16_t offset) {
+void MPU6050Plus::_setXAccelOffset(int16_t offset) {
     I2Cdev::writeWord(devAddr, MPU6050_RA_XA_OFFS_H, offset, wireObj);
 }
 
-void MPU6050Plus::setYAccelOffset(int16_t offset) {
+void MPU6050Plus::_setYAccelOffset(int16_t offset) {
     I2Cdev::writeWord(devAddr, MPU6050_RA_YA_OFFS_H, offset, wireObj);
 }
 
-void MPU6050Plus::setZAccelOffset(int16_t offset) {
+void MPU6050Plus::_setZAccelOffset(int16_t offset) {
     I2Cdev::writeWord(devAddr, MPU6050_RA_ZA_OFFS_H, offset, wireObj);
+}
+
+void MPU6050Plus::setOffsetGyroX(int16_t offset) {
+    offset_gx = offset;
+    _setXGyroOffset(offset);
+}
+
+void MPU6050Plus::setOffsetGyroY(int16_t offset) {
+    offset_gy = offset;
+    _setYGyroOffset(offset);
+}
+
+void MPU6050Plus::setOffsetGyroZ(int16_t offset) {
+    offset_gz = offset;
+    _setZGyroOffset(offset);
+}
+
+void MPU6050Plus::setOffsetAccX(int16_t offset) {
+    offset_ax = offset;
+    _setXAccelOffset(offset);
+}
+
+void MPU6050Plus::setOffsetAccY(int16_t offset) {
+    offset_ay = offset;
+    _setYAccelOffset(offset);
+}
+
+void MPU6050Plus::setOffsetAccZ(int16_t offset) {
+    offset_az = offset;
+    _setZAccelOffset(offset);
 }
 
 void MPU6050Plus::showVals(float data[]) {
