@@ -1,0 +1,24 @@
++++++++++++++++++++++ IMU  CALIBRATION OFFSETS ++++++++++++++++++++++++
+offset_acc_x:-1035	,offset_acc_y:-360	,offset_acc_z:1225
+,offset_gyro_x:-3	,offset_gyro_y:-31	,offset_gyro_z:-37
+++++++++++++++++++++++++++++++ OFFSETS ++++++++++++++++++++++++
+
++++++++++++++++++++++ IMU  CALIBRATION OFFSETS ++++++++++++++++++++++++
+offset_acc_x:-1033	,offset_acc_y:-359	,offset_acc_z:1225
+,offset_gyro_x:-3	,offset_gyro_y:-31	,offset_gyro_z:-37
+++++++++++++++++++++++++++++++ OFFSETS ++++++++++++++++++++++++
+
++++++++++++++++++++++ IMU  CALIBRATION OFFSETS ++++++++++++++++++++++++
+offset_acc_x:-1036	,offset_acc_y:-359	,offset_acc_z:1225
+,offset_gyro_x:-3	,offset_gyro_y:-31	,offset_gyro_z:-38
+++++++++++++++++++++++++++++++ OFFSETS ++++++++++++++++++++++++
+
++++++++++++++++++++++ IMU  CALIBRATION OFFSETS ++++++++++++++++++++++++
+offset_acc_x:-998	,offset_acc_y:-307	,offset_acc_z:1219
+,offset_gyro_x:-1	,offset_gyro_y:-33	,offset_gyro_z:-39
+++++++++++++++++++++++++++++++ OFFSETS ++++++++++++++++++++++++++++++++
+
++++++++++++++++++++++ IMU  CALIBRATION OFFSETS ++++++++++++++++++++++++
+offset_acc_x:-997	,offset_acc_y:-305	,offset_acc_z:1221
+,offset_gyro_x:-1	,offset_gyro_y:-33	,offset_gyro_z:-39
+++++++++++++++++++++++++++++++ OFFSETS ++++++++++++++++++++++++++++++++

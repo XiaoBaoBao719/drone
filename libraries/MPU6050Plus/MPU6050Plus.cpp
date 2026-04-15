@@ -316,17 +316,21 @@ void MPU6050Plus::filterMeasurements(float data[])
  *  and return the averages in the data array.
  * 
  */
-void MPU6050Plus::getMeasurementAvgs(float data[], size_t size)
+void MPU6050Plus::getMeasurementAvgs(float data[], size_t size, uint16_t bufferLen)
 {
     assert(size == 6);          // run time assertion that data is exactly a six element array
     long measCount = 0, buff_ax = 0, buff_ay = 0, buff_az = 0;
     long buff_gx  = 0, buff_gy = 0, buff_gz = 0;
+
+    if (bufferLen == 0) {
+        bufferLen = CAL_BUFFER_LEN;
+    }
           
-    while ( measCount < (CAL_BUFFER_LEN + NUM_ELEM_SKIP + 1) ) 
+    while ( measCount < (bufferLen + NUM_ELEM_SKIP + 1) ) 
     {  // The first NUM_ELEM_SKIP measurements are discarded to allow sensor to settle
         this->updateRawMeasurements();
 
-        if (measCount > NUM_ELEM_SKIP && measCount <= (CAL_BUFFER_LEN + NUM_ELEM_SKIP))
+        if (measCount > NUM_ELEM_SKIP && measCount <= (bufferLen + NUM_ELEM_SKIP))
         {
             buff_ax = buff_ax + rawAccX;
             buff_ay = buff_ay + rawAccY;
@@ -339,12 +343,12 @@ void MPU6050Plus::getMeasurementAvgs(float data[], size_t size)
         // delay(2);
     }
     /* data frame format = { accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z }*/
-    data[0] = buff_ax / CAL_BUFFER_LEN;
-    data[1] = buff_ay / CAL_BUFFER_LEN;
-    data[2] = buff_az / CAL_BUFFER_LEN;
-    data[3] = buff_gx / CAL_BUFFER_LEN;
-    data[4] = buff_gy / CAL_BUFFER_LEN;
-    data[5] = buff_gz / CAL_BUFFER_LEN;
+    data[0] = buff_ax / bufferLen;
+    data[1] = buff_ay / bufferLen;
+    data[2] = buff_az / bufferLen;
+    data[3] = buff_gx / bufferLen;
+    data[4] = buff_gy / bufferLen;
+    data[5] = buff_gz / bufferLen;
 }
 
 /** @brief Calibrate the IMU by adjusting the offsets until the 
@@ -451,12 +455,12 @@ void MPU6050Plus::calibrate_(float data[], size_t size)
  *  the average for each channel, and adjusting the offsets until the average measurement 
  *  is within a specified 'deadzone' threshold.
  */
-bool MPU6050Plus::calibrateIMU() {
+bool MPU6050Plus::calibrateIMU(uint16_t bufferLen) {
     uint8_t elements = 6;
     float data[elements];
     memset(data, 0, sizeof(data));
     Serial.println("Calibrating IMU...");
-    getMeasurementAvgs(data, elements);
+    getMeasurementAvgs(data, elements, bufferLen);
     calibrate_(data, elements);
     Serial.println("Calibration complete.");
     return true;
@@ -467,6 +471,12 @@ bool MPU6050Plus::calibrateIMU() {
  * 
  */
 void MPU6050Plus::resetCalibration() {
+        _setXAccelOffset(0);
+        _setYAccelOffset(0);
+        _setZAccelOffset(0);
+        _setXGyroOffset(0);
+        _setYGyroOffset(0);
+        _setZGyroOffset(0);
         offset_ax = 0;
         offset_ay = 0;
         offset_az = 0;

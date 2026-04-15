@@ -7,6 +7,7 @@
 #include <BasicLinearAlgebra.h>
 #include <Filters.h>
 #include <LowPassFilter.h>
+// #include <MovingAvg.h>
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -74,7 +75,7 @@
 #define LP_FILTER_DEGREE 5
 
 /* State Estimate Params */
-const float COMPLEMENTARY_ALPHA = 0.98; // 0.05;
+const float COMPLEMENTARY_ALPHA = 0.85; // 0.05;
 
 enum GYRO_SCALE {
     MPU_GYR_250,
@@ -204,14 +205,14 @@ public:
     const float FILTER_OFFSET = 100;
     const float FILTER_WINDOW_LENGTH = 20.0 / FILTER_SAMPLING_FREQ;
 
-    const float AX_LP_CUTOFF_FREQ = 5.0;          // 0.3;
-    const float AY_LP_CUTOFF_FREQ = 5.0;          // 0.3;
-    const float AZ_LP_CUTOFF_FREQ = 5.0;
-    const float GX_LP_CUTOFF_FREQ = 2.0;          // 0.5;
-    const float GY_LP_CUTOFF_FREQ = 1.0;          // 0.1;
+    const float AX_LP_CUTOFF_FREQ =  2.0;          // 0.3;
+    const float AY_LP_CUTOFF_FREQ =  2.0;          // 0.3;
+    const float AZ_LP_CUTOFF_FREQ =  5.0;
+    const float GX_LP_CUTOFF_FREQ = 50.0;        // 2.0;          // 0.5;
+    const float GY_LP_CUTOFF_FREQ = 50.0;        // 1.0;          // 0.1;
     // const float GY_LP_CUTOFF_FREQ = 5.0;
     // const float GY_LP_CUTOFF_FREQ = 50.0;
-    const float GZ_LP_CUTOFF_FREQ = 5.0;
+    const float GZ_LP_CUTOFF_FREQ = 15.0;
 
     MPU6050Plus();
     MPU6050Plus(uint8_t devAddr_, TwoWire *wireObj_, float sampleT = 0.01);
@@ -234,9 +235,9 @@ public:
     void _setZAccelOffset(int16_t offset);
 
     void filterMeasurements(float data[]);
-    void getMeasurementAvgs(float data[], size_t size);
+    void getMeasurementAvgs(float data[], size_t size, uint16_t bufferLen = 0); 
     void calibrate_(float data[], size_t size);
-    bool calibrateIMU();
+    bool calibrateIMU(uint16_t bufferLen = 0);
     void resetCalibration();
     void setCalibrated(bool calibrated) { imuCalibrated = calibrated; }
     bool getCalibrated() { return imuCalibrated; }

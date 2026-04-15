@@ -5,6 +5,7 @@
 // #include "Arduino_LED_Matrix.h"  //Include the LED_Matrix library
 
 // custom dependencies
+#include <MovingAvg.h>
 #include <MPU6050Plus.h>
 #include <Arduino.h>
 
@@ -34,21 +35,9 @@ EulerRPY rpy;
 // const float IMU_SAMPLE_FREQ_MS = 1000;  // millisecs
 float IMU_SAMPLE_FREQ = 0.05;    // time interval between imu points (secs)
 
-// void i2cSetup() {
-//   // join I2C bus (I2Cdev library doesn't do this automatically)
-// #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-//   Wire1.begin();
-//   Wire1.setClock(200000);
-//   // TWBR = 24;  // 400kHz I2C clock (200kHz if CPU is 8MHz)
-// #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
-//   Fastwire::setup(200, true);
-// #endif
-// }
+/* DIGITAL SIGNAL PROCESSING */
+MovingAvg<5> movingAvg;
 
-
-// # Source - https://stackoverflow.com/q/53033620
-// # Posted by Amir, modified by community. See post 'Timeline' for change history
-// # Retrieved 2026-03-12, License - CC BY-SA 4.0
 
 float euler_to_quaternion(float *q_, float yaw, float pitch, float roll) {
 
@@ -133,16 +122,17 @@ void setup() {
     // imu.setOffsetGyroX(-4);
     // imu.setOffsetGyroY(-36);
     // imu.setOffsetGyroZ(-36);
+  imu.resetCalibration();
 
-      imu.setOffsetAccX(-1036);
-  imu.setOffsetAccY(-359);
-  imu.setOffsetAccZ(1225);
-  imu.setOffsetGyroX(-3);
-  imu.setOffsetGyroY(-31);
-  imu.setOffsetGyroZ(-38);
+  imu.setOffsetAccX(-997);
+  imu.setOffsetAccY(-305);
+  imu.setOffsetAccZ(1221);
+  imu.setOffsetGyroX(-1);
+  imu.setOffsetGyroY(-33);
+  imu.setOffsetGyroZ(-39);
 
 
-    imu.setCalibrated(false);
+  imu.setCalibrated(true);
 
   // imu.invertY();
   imu.invertZ();
@@ -155,6 +145,8 @@ void setup() {
   // Serial.print(imu.getOffsetAccY());
   // Serial.print(",offset_acc_z:");
   // Serial.println(imu.getOffsetAccZ());
+
+  movingAvg = MovingAvg<5>();
 
   delay(3000);
 }
@@ -197,8 +189,16 @@ void loop() {
 
     // Serial.print("X:");
     // Serial.print(imu.getAngleX());
-    // Serial.print(",Y:");
+    
+    Serial.print(",Y:");
     Serial.print(imu.getAngleY());
+
+    /* Experimental moving avg filtering */
+    // float rawAngle = imu.getAngleY();
+    // float output;
+    // movingAvg.filter(rawAngle, output);
+    // Serial.print(output);
+
     // Serial.print(",Z:");
     // Serial.print(imu.getAngleZ());
     Serial.println();

@@ -121,9 +121,10 @@ void setup() {
 
   // Flip imu Y-axis since default coodinate frame is ENU
   /* Print Gyro and Accel configs */
+  imu.resetCalibration();
 
   /* Perform calibration */
-  imu.calibrateIMU();
+  imu.calibrateIMU(2000);
   // imu.calcOffsets();
   // mpu.CalibrateAccel(20);
   // mpu.CalibrateGyro(20);

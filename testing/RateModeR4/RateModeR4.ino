@@ -13,6 +13,7 @@
 // #include "Arduino_LED_Matrix.h"   //Include the LED_Matrix library
 
 // custom dependencies
+#include <MovingAvg.h>
 #include <MPU6050Plus.h>
 #include <ArduinoJson.h>  // For SITL JSON parsing
 
@@ -24,12 +25,13 @@
 /* BEGIN GLOBAL CONSTANTS */
 
 // debug update freq
-#define DEBUG_MODE  (false)
-#define DEBUG_ANGLE (false)
-#define DEBUG_MOTOR (false)
-#define DEBUG_PID   (true)
+#define DEBUG_MODE      (false)
+#define DEBUG_ANGLE     (false)
+#define DEBUG_MOTOR     (false)
+#define DEBUG_PID       (true)
 #define DEBUG_RC_RAW    (false)
 #define DEBUG_RC_RPY    (false)
+#define DISABLE_MOTORS  (true)
 
 const int DEBUG_UPDATE_FREQ_MS = 1000; // millisecs
 unsigned long prevMillis = 0;
@@ -158,6 +160,10 @@ static float pidRollAngle;
 static float pidPitchAngle;
 static float pidYawAngle;
 
+MovingAvg<5> mvAvgPidRollAngle;
+MovingAvg<5> mvAvgPidPitchAngle;
+MovingAvg<5> mvAvgPidYawAngle;
+
 /* Angle Mode Controller PID Gains */
 /* Converts desired attitude angles to rate setpoints (cascaded control) */
 static constexpr float ANGLE_ROLL_KP   = 3.8f;   // Attitude to rate conversion (±45° -> ~±190 deg/s)
@@ -186,6 +192,10 @@ float inputX, inputY, inputZ, input_throttle;
 static float pidRollRate;
 static float pidPitchRate;
 static float pidYawRate;
+
+MovingAvg<5> mvAvgPidRollRate;
+MovingAvg<5> mvAvgPidPitchRate;
+MovingAvg<5> mvAvgPidYawRate;
 
 /* Rate Mode Controller PID Gains */
 /* Gyroscope direct feedback (inner loop) - 1000 Hz control */
@@ -606,6 +616,10 @@ void updateControllers() {
                           CONTROL_LOOP_TIME_SEC, ANGLE_YAW_I_LIMIT, ANGLE_PID_LIMIT,
                           yawAnglePID);
 
+  pidRollAngle  = mvAvgPidRollAngle.filter(pidRollAngle);
+  pidPitchAngle = mvAvgPidPitchAngle.filter(pidPitchAngle);
+  pidYawAngle   = mvAvgPidYawAngle.filter(pidYawAngle);
+
   pidRollRate   = pid(pidRollAngle, angleRateX, ROLL_KP, ROLL_KI, ROLL_KD,
                           CONTROL_LOOP_TIME_SEC, ROLL_I_LIMIT, PID_LIMIT, 
                           rollRatePID);
@@ -617,6 +631,11 @@ void updateControllers() {
   pidYawRate    = pid(pidYawAngle, angleRateZ, YAW_KP, YAW_KI, YAW_KD,
                          CONTROL_LOOP_TIME_SEC, YAW_I_LIMIT, PID_LIMIT, 
                          yawRatePID);
+
+  pidRollRate  = mvAvgPidRollRate.filter(pidRollRate);
+  pidPitchRate = mvAvgPidPitchRate.filter(pidPitchRate); 
+  pidYawRate   = mvAvgPidYawRate.filter(pidYawRate);
+
   // Serial.println("thr: " + String(input_throttle) + "\tpidX: " + String(pid_out_x) + "\tpidY: " + String(pid_out_y) + "\tpidZ: " + String(pid_out_z));
   // Serial.println();
 
@@ -673,16 +692,18 @@ void updateMotors() {
     {
 #if SITL_MODE
       motor_pwm[0] = (uint16_t)motors.cmd[0];
-+      motor_pwm[1] = (uint16_t)motors.cmd[1];
+      motor_pwm[1] = (uint16_t)motors.cmd[1];
       motor_pwm[2] = (uint16_t)motors.cmd[2];
       motor_pwm[3] = (uint16_t)motors.cmd[3];
       write_sitl_pwm();
 #else
       /* Command motor speeds to ESCS! */
+      #if !DISABLE_MOTORS
       m1_esc.speed(motors.cmd[0]);
       m2_esc.speed(motors.cmd[1]);
       m3_esc.speed(motors.cmd[2]);
       m4_esc.speed(motors.cmd[3]);
+      #endif
 #endif
     }
 }
@@ -818,6 +839,19 @@ void setup() {
   }
   Serial.println(F("RC reciever ready!"));
   delay(100);
+
+  /** ===========================================================
+   *            Digital Signal Processing Setup
+   *  ===========================================================
+   */
+
+  mvAvgPidRollAngle  = MovingAvg<5>();
+  mvAvgPidPitchAngle = MovingAvg<5>();
+  mvAvgPidYawAngle   = MovingAvg<5>();
+  mvAvgPidRollRate  = MovingAvg<5>();
+  mvAvgPidPitchRate = MovingAvg<5>();
+  mvAvgPidYawRate   = MovingAvg<5>();
+
 
   /** ===========================================================
    *                    End of Setup.
