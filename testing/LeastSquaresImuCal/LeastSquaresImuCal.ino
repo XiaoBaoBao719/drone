@@ -63,10 +63,25 @@ typedef struct {
 } dataPoint;
 
 void collectData(imu* imu, dataPoint* dp) {
-    /* read raw imu accelerometer measurements and update the 18 measurements */
-    dp->x = imu->getRawAccX();
-    dp->y = imu->getRawAccY();
-    dp->z = imu->getRawAccZ();
+    long measCount = 0, buff_ax = 0, buff_ay = 0, buff_az = 0;
+    const int numMeasurements = 1000; // Number of measurements to average for each orientation
+    const int numSkip = 50; // Number of initial measurements to skip for filter settling
+
+    while (measCount < numMeasurements + numSkip) {
+        if (numSkip < measCount && measCount <= numMeasurements + numSkip) 
+        {
+            /* read raw imu accelerometer measurements and update */
+            buff_ax += imu->getRawAccX();
+            buff_ay += imu->getRawAccY();
+            buff_az += imu->getRawAccZ();
+        }
+        measCount++;
+    }
+        
+    /* normalize and update the 18 measurements */
+    dp->x = buff_ax / numMeasurements;
+    dp->y = buff_ay / numMeasurements;
+    dp->z = buff_az / numMeasurements;
 }
 
 void waitForUserInput(const char* prompt) {
