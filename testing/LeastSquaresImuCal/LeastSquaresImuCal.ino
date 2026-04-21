@@ -2,8 +2,8 @@
 #include <Arduino.h>
 #include <MPU6050Plus.h>
 #include <BasicLinearAlgebra.h>
-#include <SignalProcessing/LowPassFilter.h>
-#include <SignalProcessing/MovingAvg.h>
+// #include "SignalProcessing/LowPassFilter.h"
+// #include "SignalProcessing/MovingAvg.h"
 
 using namespace BLA;
 
@@ -36,33 +36,35 @@ using namespace BLA;
 int LED_PIN = 13;
 
 float x_offset, y_offset, z_offset;
-signed int64_t x_xup, y_xup, z_xup;
-signed int64_t x_yup, y_yup, z_yup;
-signed int64_t x_zup, y_zup, z_zup;
-signed int64_t x_xdown, y_xdown, z_xdown;
-signed int64_t x_ydown, y_ydown, z_ydown;
-signed int64_t x_zdown, y_zdown, z_zdown;
+int64_t x_xup, y_xup, z_xup;
+int64_t x_yup, y_yup, z_yup;
+int64_t x_zup, y_zup, z_zup;
+int64_t x_xdown, y_xdown, z_xdown;
+int64_t x_ydown, y_ydown, z_ydown;
+int64_t x_zdown, y_zdown, z_zdown;
+
+typedef struct {
+   int64_t x;
+   int64_t y;
+   int64_t z;
+} dataPoint;
 
 dataPoint xup, yup, zup;
 dataPoint xdown, ydown, zdown;
 
 float a, b, c, d, e, f, g, h, i;  // Scale factors and misalignment parameters
 
-BLA::Matrix<3, 3> A;            // Calibration matrix that transforms raw measurements into calibrated values
-A.Fill(0.0);                    // Initialize A to zero
-BLA::Matrix<3, 1> b;            // offsets vector
-b.Fill(0.0);                    // Initialize b to zero
-BLA::Matrix<3, 1> x;            // solution vector (calibrated values)
+BLA::Matrix<3, 3> A = { 1, 0, 0,
+                        0, 1, 0,
+                        0, 0, 1};            // Calibration matrix that transforms raw measurements into calibrated values
+BLA::Matrix<3> offsets = { 0, 0, 0 };            // offsets vector
+BLA::Matrix<3> x;            // solution vector (calibrated values)
 
 MPU6050Plus imu;                // MPU6050 wrapper that provides filtered angle measurements and raw data access
 
-typedef struct {
-    signed int64_t x;
-    signed int64_t y;
-    signed int64_t z;
-} dataPoint;
 
-void collectData(imu* imu, dataPoint* dp) {
+
+void collectData(MPU6050Plus* imu, dataPoint* dp) {
     long measCount = 0, buff_ax = 0, buff_ay = 0, buff_az = 0;
     const int numMeasurements = 1000; // Number of measurements to average for each orientation
     const int numSkip = 50; // Number of initial measurements to skip for filter settling
@@ -71,9 +73,9 @@ void collectData(imu* imu, dataPoint* dp) {
         if (numSkip < measCount && measCount <= numMeasurements + numSkip) 
         {
             /* read raw imu accelerometer measurements and update */
-            buff_ax += imu->getRawAccX();
-            buff_ay += imu->getRawAccY();
-            buff_az += imu->getRawAccZ();
+            buff_ax += imu->getAccXRaw();
+            buff_ay += imu->getAccYRaw();
+            buff_az += imu->getAccZRaw();
         }
         measCount++;
     }
@@ -85,15 +87,18 @@ void collectData(imu* imu, dataPoint* dp) {
 }
 
 void waitForUserInput(const char* prompt) {
+
+    int response = 0;
+
     Serial.println(prompt);
     // Clear the input buffer
     while (Serial.available() > 0) {
         Serial.read();
     }
     while (Serial.available() == 0) {
-        resp = Serial.read();
+        response = Serial.read();
         delay(500);
-        Serial.println("You entered: " + String(resp));
+        Serial.println("You entered: " + String(response));
         Serial.println("Advancing...");
     }
 }
@@ -153,7 +158,7 @@ void setup() {
     y_offset = (xup.y + xdown.y + yup.y + ydown.y + zup.y + zdown.y) / 6;
     z_offset = (xup.z + xdown.z + yup.z + ydown.z + zup.z + zdown.z) / 6;
     /* Calculate the 9 calibration parameters */
-    a = (xup.x - x_offset) + (-xdown.x + x_ofset) / 2; // Scale factor for X-axis
+    a = (xup.x - x_offset) + (-xdown.x + x_offset) / 2; // Scale factor for X-axis
     b = (yup.x - x_offset) + (-ydown.x + x_offset) / 2; // Misalignment of Y-axis on X-axis
     c = (zup.x - x_offset) + (-zdown.x + x_offset) / 2; // Misalignment of Z-axis on X-axis
     d = (xup.y - y_offset) + (-xdown.y + y_offset) / 2; // Misalignment of X-axis on Y-axis
@@ -167,34 +172,34 @@ void setup() {
     A = { a, b, c,
           d, e, f,
           g, h, i };
-    b = { x_offset, y_offset, z_offset };
+    offsets = { x_offset, y_offset, z_offset };
 
     Serial.println("Calibration matrix A:");
     Serial.print(A(0, 0)); Serial.print("\t"); Serial.print(A(0, 1)); Serial.print("\t"); Serial.println(A(0, 2));
     Serial.print(A(1, 0)); Serial.print("\t"); Serial.print(A(1, 1)); Serial.print("\t"); Serial.println(A(1, 2));
     Serial.print(A(2, 0)); Serial.print("\t"); Serial.print(A(2, 1)); Serial.print("\t"); Serial.println(A(2, 2));
     Serial.println("Offsets vector b:");
-    Serial.print(b(0, 0)); Serial.print("\t"); Serial.print(b(1, 0)); Serial.print("\t"); Serial.println(b(2, 0));
+    Serial.print(offsets(0)); Serial.print("\t"); Serial.print(offsets(1)); Serial.print("\t"); Serial.println(offsets(2));
     
     waitForUserInput("Calibration complete. Press any key to test on raw measurements...");
 }
 
 
 void loop() {
-    float raw_x = imu.getRawAccX();
-    float raw_y = imu.getRawAccy();
-    float raw_z = imu.getRawAccZ();
+    float raw_x = imu.getAccXRaw();
+    float raw_y = imu.getAccYRaw();
+    float raw_z = imu.getAccZRaw();
 
     /* Apply calibration to raw measurements */
     x = { raw_x, raw_y, raw_z };
 
     auto A_decomp = A;
     auto decomp = LUDecompose(A_decomp);
-    if (!decomp) {
-        Serial.println("Calibration matrix is singular! Cannot apply calibration.");
-        return;
-    }
-    Matrix<3, 1> acc_calibrated = LUSolve(decomp, x - b);
+    // if (!decomp) {
+    //     Serial.println("Calibration matrix is singular! Cannot apply calibration.");
+    //     return;
+    // }
+    Matrix<3, 1> acc_calibrated = LUSolve(decomp, x - offsets);
 
     Serial.print("Raw Accel: (");
     Serial.print(x); Serial.println("), ");
