@@ -64,21 +64,26 @@ MPU6050Plus imu;                // MPU6050 wrapper that provides filtered angle 
 
 
 
-void collectData(MPU6050Plus* imu, dataPoint* dp) {
+void collectData(MPU6050Plus imu, dataPoint* dp) {
     long measCount = 0, buff_ax = 0, buff_ay = 0, buff_az = 0;
     const int numMeasurements = 1000; // Number of measurements to average for each orientation
     const int numSkip = 50; // Number of initial measurements to skip for filter settling
-
+    Serial.println("Starting data collection...");
     while (measCount < numMeasurements + numSkip) {
         if (numSkip < measCount && measCount <= numMeasurements + numSkip) 
         {
             /* read raw imu accelerometer measurements and update */
-            buff_ax += imu->getAccXRaw();
-            buff_ay += imu->getAccYRaw();
-            buff_az += imu->getAccZRaw();
+            imu.updateRawMeasurements();
+
+            buff_ax += imu.getAccXRaw();
+            buff_ay += imu.getAccYRaw();
+            buff_az += imu.getAccZRaw();
+            Serial.println("read data");
+            Serial.println(buff_ax);
         }
         measCount++;
     }
+    Serial.println("Data collection for axis complete.");
         
     /* normalize and update the 18 measurements */
     dp->x = buff_ax / numMeasurements;
@@ -98,23 +103,43 @@ void waitForUserInput(const char* prompt) {
     while (Serial.available() == 0) {
         response = Serial.read();
         delay(500);
-        Serial.println("You entered: " + String(response));
-        Serial.println("Advancing...");
+        
     }
+    Serial.println("You entered: " + String(response));
+    Serial.println("Advancing...");
 }
 
 void setup() {
-    Serial.begin(9600);
-    Wire1.begin();
-    Wire1.setClock(400000); // 400 kHz I2C clock
+   Serial.begin(9600);
+Wire1.begin();
+Wire1.setClock(400000);  // 400 kHz I2C clock
 
-    // Initialize MPU6050
-    imu.initialize(0x68, &Wire1, 0.001); // 1 kHz sample rate
-    // Verify connection
-    while (!imu.testConnection()) {
-        Serial.println("MPU connection failed! Retrying...");
-        delay(500);
-    }
+// Initialize MPU6050
+imu.initialize(0x68, &Wire1, 0.001);  // 1 kHz sample rate
+// Verify connection
+// Verify connection with WHO_AM_I before proceeding
+uint8_t maxRetries = 10;
+uint8_t retryCount = 0;
+while (!imu.initialize() && retryCount < maxRetries) {
+  Serial.print("WHO_AM_I verification failed (attempt ");
+  Serial.print(retryCount + 1);
+  Serial.print("/");
+  Serial.print(maxRetries);
+  Serial.println("). Retrying...");
+  retryCount++;
+  delay(500);
+}
+
+if (retryCount >= maxRetries) {
+  Serial.println("FATAL: IMU initialization failed after max retries!");
+  while (1) {
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(100);
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(100);
+  }
+}
+Serial.println("IMU initialized and verified.");
 
     imu.setCalibrated(false); // Start with uncalibrated state
 
@@ -129,27 +154,27 @@ void setup() {
     /* Collect raw IMU data and wait for user input at each of the six orientations */
     /* X+ orientation */
     waitForUserInput("Place the IMU in the X+ orientation and press any key to continue...");
-    collectData(&imu, &xup);
+    collectData(imu, &xup);
 
     /* Y+ orientation */
     waitForUserInput("Place the IMU in the Y+ orientation and press any key to continue...");
-    collectData(&imu, &yup);
+    collectData(imu, &yup);
 
     /* Z+ orientation */
     waitForUserInput("Place the IMU in the Z+ orientation and press any key to continue...");
-    collectData(&imu, &zup);
+    collectData(imu, &zup);
 
     /* X- orientation */
     waitForUserInput("Place the IMU in the X- orientation and press any key to continue...");
-    collectData(&imu, &xdown);
+    collectData(imu, &xdown);
 
     /* Y- orientation */
     waitForUserInput("Place the IMU in the Y- orientation and press any key to continue...");
-    collectData(&imu, &ydown);
+    collectData(imu, &ydown);
 
     /* Z- orientation */
     waitForUserInput("Place the IMU in the Z- orientation and press any key to continue...");
-    collectData(&imu, &zdown);
+    collectData(imu, &zdown);
 
 
     /* Calculate the 12 calibration parameters */
@@ -184,26 +209,41 @@ void setup() {
     waitForUserInput("Calibration complete. Press any key to test on raw measurements...");
 }
 
+float currTimer = 0;
+float prevTimer = 0;
+uint32_t interval = 10;     // 100 Hz
+
 
 void loop() {
-    float raw_x = imu.getAccXRaw();
-    float raw_y = imu.getAccYRaw();
-    float raw_z = imu.getAccZRaw();
 
-    /* Apply calibration to raw measurements */
-    x = { raw_x, raw_y, raw_z };
+    currTimer = millis();
 
-    auto A_decomp = A;
-    auto decomp = LUDecompose(A_decomp);
-    // if (!decomp) {
-    //     Serial.println("Calibration matrix is singular! Cannot apply calibration.");
-    //     return;
-    // }
-    Matrix<3, 1> acc_calibrated = LUSolve(decomp, x - offsets);
+    if (currTimer - prevTimer > interval) {
+        imu.updateRawMeasurements();
 
-    Serial.print("Raw Accel: (");
-    Serial.print(x); Serial.println("), ");
+        float raw_x = imu.getAccXRaw();
+        float raw_y = imu.getAccYRaw();
+        float raw_z = imu.getAccZRaw();
 
-    Serial.print("calibrated Accel: (");
-    Serial.print(acc_calibrated); Serial.println(")");
+        /* Apply calibration to raw measurements */
+        x = { raw_x, raw_y, raw_z };
+
+        // Serial.print("Raw Accel: (");
+        // Serial.print(x); Serial.println("), ");
+
+        /* Solve by least squares LU decomposition method */
+        auto A_decomp = A;
+        auto decomp = LUDecompose(A_decomp);
+        // if (!decomp) {
+        //     Serial.println("Calibration matrix is singular! Cannot apply calibration.");
+        //     return;
+        // }
+        Matrix<3, 1> acc_calibrated = LUSolve(decomp, x - offsets);
+
+        Serial.print("Calibrated Accel Output: ( ");
+        Serial.print(acc_calibrated);
+        Serial.println(" )");
+
+        prevTimer = currTimer;
+}
 }
