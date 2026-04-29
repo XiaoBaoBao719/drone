@@ -8,6 +8,7 @@
 #include <MovingAvg.h>
 #include <MPU6050Plus.h>
 #include <Arduino.h>
+#include <MPU6050.h>
 
 #define LED_PIN LED_BUILTIN
 #define BUTTON_PIN D2
@@ -28,7 +29,7 @@ uint32_t loopTimer;
 
 
 // MPU6050Plus mpu;
-// MPU6050 mpu(0x68, &Wire1);
+MPU6050 mpu(MPU_ADDR, &Wire1);
 MPU6050Plus imu;
 EulerRPY rpy;
 
@@ -187,8 +188,8 @@ void loop() {
     // Serial.print(imu.getGyroZ());
     // Serial.println();
 
-    // Serial.print("X:");
-    // Serial.print(imu.getAngleX());
+    Serial.print("X:");
+    Serial.print(imu.getAngleX());
     
     Serial.print(",Y:");
     Serial.print(imu.getAngleY());
@@ -199,8 +200,8 @@ void loop() {
     // movingAvg.filter(rawAngle, output);
     // Serial.print(output);
 
-    // Serial.print(",Z:");
-    // Serial.print(imu.getAngleZ());
+    Serial.print(",Z:");
+    Serial.print(imu.getAngleZ());
     Serial.println();
 
     // imu.printInvertedAxes();

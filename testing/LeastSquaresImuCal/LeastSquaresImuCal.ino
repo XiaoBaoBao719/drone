@@ -233,12 +233,16 @@ void loop() {
 
         /* Solve by least squares LU decomposition method */
         auto A_decomp = A;
+        auto A_inv;
+        Invert(A_inv);
+        
         auto decomp = LUDecompose(A_decomp);
         // if (!decomp) {
         //     Serial.println("Calibration matrix is singular! Cannot apply calibration.");
         //     return;
         // }
-        Matrix<3, 1> acc_calibrated = LUSolve(decomp, x - offsets);
+        // Matrix<3, 1> acc_calibrated = LUSolve(decomp, x - offsets);
+        Matrix<6> x_
 
         Serial.print("Calibrated Accel Output: ( ");
         Serial.print(acc_calibrated);
