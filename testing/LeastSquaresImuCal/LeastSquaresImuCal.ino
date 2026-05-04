@@ -242,12 +242,12 @@ void loop() {
         //     return;
         // }
         // Matrix<3, 1> acc_calibrated = LUSolve(decomp, x - offsets);
-        Matrix<6> x_
+        // Matrix<6> x_
 
         Serial.print("Calibrated Accel Output: ( ");
         Serial.print(acc_calibrated);
         Serial.println(" )");
 
         prevTimer = currTimer;
-}
+    }
 }

@@ -163,6 +163,7 @@ bool MPU6050Plus::testConnection() {
 void MPU6050Plus::updateRawMeasurements() {
     int16_t _ax_raw, _ay_raw, _az_raw;
     int16_t _gx_raw, _gy_raw, _gz_raw;
+    float _rawAccX, _rawAccY, _rawAccZ;
     float angleGyroX, angleGyroY, angleGyroZ;
     float data[6];
 
@@ -172,9 +173,13 @@ void MPU6050Plus::updateRawMeasurements() {
     // rawAccX = _ax_raw - this->getOffsetAccX();
     // rawAccY = _ay_raw - this->getOffsetAccY();
     // rawAccZ = _az_raw - this->getOffsetAccZ();
-    rawAccX = _ax_raw;
-    rawAccY = _ay_raw;
-    rawAccZ = _az_raw;
+    _rawAccX = _ax_raw - offset_ax;
+    _rawAccY = _ay_raw - offset_ay;
+    _rawAccZ = _az_raw - offset_az;
+
+    rawAccX = _rawAccX;
+    rawAccY = _rawAccY;
+    rawAccZ = _rawAccZ;
 
     /* Convert: Accelerometer Counts -> m/s^2 
     Raw accelerometer values, which are in units of Counts per "g" (9.81m/s^2), 
@@ -182,9 +187,9 @@ void MPU6050Plus::updateRawMeasurements() {
 
     The product is multiplied by the gravity constant in order to get back to units of m/s^2 
     */
-    accX = (_ax_raw / this->getAccScaleFactor() ) * G;  // x
-    accY = (_ay_raw / this->getAccScaleFactor() ) * G;  // y
-    accZ = (_az_raw / this->getAccScaleFactor() ) * G;  // z
+    accX = (rawAccX / this->getAccScaleFactor() ) * G;  // x
+    accY = (rawAccY / this->getAccScaleFactor() ) * G;  // y
+    accZ = (rawAccZ / this->getAccScaleFactor() ) * G;  // z
 
     if (imuCalibrated) {
         /* Apply Low Pass Filters to Accelerometer if sensors are calibrated */
@@ -233,14 +238,14 @@ void MPU6050Plus::updateRawMeasurements() {
     /* +++++ READ RAW GYRO VALUES +++++ */
     getRotation(&_gx_raw,&_gy_raw,&_gz_raw);
 
-    rawGyroX = _gx_raw;
-    rawGyroY = _gy_raw;
-    rawGyroZ = _gz_raw;
+    rawGyroX = _gx_raw - offset_gx;
+    rawGyroY = _gy_raw - offset_gy;
+    rawGyroZ = _gz_raw - offset_gz;
 
     /* Convert: Counts -> deg/s */
-    gyroX = _gx_raw / this->getGyroScaleFactor();
-    gyroY = _gy_raw / this->getGyroScaleFactor();
-    gyroZ = _gz_raw / this->getGyroScaleFactor();
+    gyroX = rawGyroX / this->getGyroScaleFactor();
+    gyroY = rawGyroY / this->getGyroScaleFactor();
+    gyroZ = rawGyroZ / this->getGyroScaleFactor();
 
     /* Apply Low Pass Filters to Gyro if sensors are calibrated */
     if (imuCalibrated) {
@@ -357,47 +362,74 @@ void MPU6050Plus::getMeasurementAvgs(float data[], size_t size, uint16_t bufferL
  */
 void MPU6050Plus::calibrate_(float data[], size_t size)
 {
+    long int ACCEL_DEADZONE = 8; // 8 LSBs is ~0.25 mg, which is roughly the noise level of the aceelerometer
+    long int GYRO_DEADZONE = 1; // 1 LSB is
+    
     /* Reset the IMU's offsets */
-    offset_ax = -1 * data[0] / this->getAccScale();
-    offset_ay = -1 * data[1] / this->getAccScale();
+    // offset_ax = -1 * data[0] / this->getAccScale();
+    // offset_ay = -1 * data[1] / this->getAccScale();
     
-    /** 
-     * Since this vector already points in the opposite direction
-     * subtract from accel scale factor (i.e. 16384 counts).
-     */ 
-    offset_az = (this->getAccScaleFactor() -  data[2] ) / this->getAccScale();
-    // Serial.println("HELLO");
-    // Serial.print("offset "); Serial.println(offset_az);
+    // /** 
+    //  * Since this vector already points in the opposite direction
+    //  * subtract from accel scale factor (i.e. 16384 counts).
+    //  */ 
+    // offset_az = (this->getAccScaleFactor() -  data[2] ) / this->getAccScale();
+    // // Serial.println("HELLO");
+    // // Serial.print("offset "); Serial.println(offset_az);
     
-    offset_gx = -1 * data[3] / this->getGyroScale();
-    offset_gy = -1 * data[4] / this->getGyroScale();
-    offset_gz = -1 * data[5] / this->getGyroScale();
+    // offset_gx = -1 * data[3] / this->getGyroScale();
+    // offset_gy = -1 * data[4] / this->getGyroScale();
+    // offset_gz = -1 * data[5] / this->getGyroScale();
+    offset_ax = data[0];
+    offset_ay = data[1];
+    offset_az = data[2] - this->getAccScaleFactor();        // subtract out gravity
+    offset_gx = data[3];
+    offset_gy = data[4];
+    offset_gz = data[5];
 
-    uint32_t zAccelTolerance = 20;
+    uint32_t zAccelTolerance = 1;
     uint8_t numSensorsReady = 0;
 
     uint32_t debug_counter = 0;
-    char logBuffer[100];
+    char logBuffer[10000];
     sprintf(logBuffer, "Calibrating IMU...>");
     Serial.println(logBuffer);
     while (true) {
             
-        _setXAccelOffset(offset_ax);
-        _setYAccelOffset(offset_ay);
-        _setZAccelOffset(offset_az);
-        _setXGyroOffset(offset_gx);
-        _setYGyroOffset(offset_gy);
-        _setZGyroOffset(offset_gz);
+        // _setXAccelOffset(offset_ax);
+        // _setYAccelOffset(offset_ay);
+        // _setZAccelOffset(offset_az);
+        // _setXGyroOffset(offset_gx);
+        // _setYGyroOffset(offset_gy);
+        // _setZGyroOffset(offset_gz);
 
+        offset_ax = data[0];
+        offset_ay = data[1];
+        offset_az = data[2] - this->getAccScaleFactor();        // subtract out gravity
+        offset_gx = data[3];
+        offset_gy = data[4];
+        offset_gz = data[5];
+
+        // Get the mean values from each sensor
         this->getMeasurementAvgs(data, size);
 
-        // Serial.print(data[0]); Serial.print(" ");
-        // Serial.print(data[1]); Serial.print(" ");
-        // Serial.print(data[2]); Serial.print(" ");
-        // Serial.print(data[3]); Serial.print(" ");
-        // Serial.print(data[4]); Serial.print(" ");
-        // Serial.print(data[5]); Serial.print(" ");
-        // Serial.println();
+        Serial.println("Mean sensor values:");
+        Serial.print(data[0]); Serial.print(" ");
+        Serial.print(data[1]); Serial.print(" ");
+        Serial.print(data[2]); Serial.print(" ");
+        Serial.print(data[3]); Serial.print(" ");
+        Serial.print(data[4]); Serial.print(" "); 
+        Serial.print(data[5]); Serial.print(" "); 
+        Serial.println();
+
+        Serial.println("Raw sensor values:");
+        Serial.print(rawAccX); Serial.print("\n");
+        Serial.print(rawAccY); Serial.print("\n");
+        Serial.print(rawAccZ); Serial.print("\n");
+        Serial.print(rawGyroX); Serial.print("\n");
+        Serial.print(rawGyroY); Serial.print("\n");
+        Serial.print(rawGyroZ); Serial.print("\n");
+        Serial.println();
 
         numSensorsReady = 0;
 
@@ -405,42 +437,54 @@ void MPU6050Plus::calibrate_(float data[], size_t size)
             // Serial.println("Accel X ready");
             numSensorsReady++;
         }
-        else    offset_ax = offset_ax - data[0] / ACCEL_DEADZONE;
+        else    offset_ax -= (data[0] / ACCEL_DEADZONE);
 
         if ( abs( data[1] ) <= ACCEL_DEADZONE ) {
             // Serial.println("Accel Y ready");
             numSensorsReady++;
         }
-        else    offset_ay = offset_ay - data[1] / ACCEL_DEADZONE;
+        else    offset_ay -= (data[1] / ACCEL_DEADZONE);
 
-        if ( abs( this->getAccScaleFactor() - data[2] ) <= ACCEL_DEADZONE + zAccelTolerance ) {
+        if ( abs( data[2] - this->getAccScaleFactor() ) <= ACCEL_DEADZONE + zAccelTolerance ) {
             // Serial.println("Accel Z ready");
             numSensorsReady++;
         }
-        else    offset_az = offset_az + (this->getAccScaleFactor() - data[2] ) / ACCEL_DEADZONE;
+        else    offset_az -= ( data[2] - this->getAccScaleFactor() ) / ACCEL_DEADZONE;
 
         if ( abs( data[3] ) <= GYRO_DEADZONE) {
             numSensorsReady++;
         }
-        else    offset_gx = offset_gx - data[3] / (GYRO_DEADZONE + 1);
+        else    offset_gx -= (data[3] / (GYRO_DEADZONE + 1));
     
         if ( abs( data[4] ) <= GYRO_DEADZONE ) {
             numSensorsReady++;
         }
-        else    offset_gy = offset_gy - data[4] / (GYRO_DEADZONE + 1);
+        else    offset_gy -= (data[4] / (GYRO_DEADZONE + 1));
     
         if ( abs( data[5] ) <= GYRO_DEADZONE) {
             numSensorsReady++;
         }
-        else    offset_gz = offset_gz - data[5] / (GYRO_DEADZONE + 1);
+        else    offset_gz -= (data[5] / (GYRO_DEADZONE + 1));
 
 
-        if (debug_counter % 100 == 0) {
-            Serial.print("Number of sensors ready: ");  Serial.println(numSensorsReady);
-            sprintf(logBuffer, "calibrating imu..." );
-            // sprintf(logBuffer, "offset_az: %.2f", (getAccScaleFactor() - data[2]) );
+        if (debug_counter % 10 == 0) {
+            // Serial.print("Number of sensors ready: ");  Serial.println(numSensorsReady);
+            // Serial.print("offset_ax: "); Serial.println(offset_ax);
+            // Serial.print("offset_ay: "); Serial.println(offset_ay);
+            // Serial.print("offset_az: "); Serial.println(offset_az);
+            // Serial.print("offset_gx: "); Serial.println(offset_gx);
+            // Serial.print("offset_gy: "); Serial.println(offset_gy);
+            // Serial.print("offset_gz: "); Serial.println(offset_gz);
+            Serial.println();
+            // sprintf(logBuffer, "calibrating imu..." );
+            // sprintf(logBuffer, "offset_ax: %.2f", (offset_ax) );
+            // sprintf(logBuffer, "offset_ay: %.2f", (offset_ay) );
+            // sprintf(logBuffer, "offset_az: %.2f", (offset_az) );
+            // sprintf(logBuffer, "offset_gx: %.2f", (offset_gx) );
+            // sprintf(logBuffer, "offset_gy: %.2f", (offset_gy) );
+            // sprintf(logBuffer, "offset_gz: %.2f", (offset_gz) );
             // sprintf(logBuffer, "...> Number of sensors ready: %d", numSensorsReady);
-            Serial.println(logBuffer);
+            // Serial.println(logBuffer);
         }
         debug_counter++;
 
@@ -595,32 +639,32 @@ void MPU6050Plus::_setZAccelOffset(int16_t offset) {
 
 void MPU6050Plus::setOffsetGyroX(int16_t offset) {
     offset_gx = offset;
-    _setXGyroOffset(offset);
+    // _setXGyroOffset(offset);
 }
 
 void MPU6050Plus::setOffsetGyroY(int16_t offset) {
     offset_gy = offset;
-    _setYGyroOffset(offset);
+    // _setYGyroOffset(offset);
 }
 
 void MPU6050Plus::setOffsetGyroZ(int16_t offset) {
     offset_gz = offset;
-    _setZGyroOffset(offset);
+    // _setZGyroOffset(offset);
 }
 
 void MPU6050Plus::setOffsetAccX(int16_t offset) {
     offset_ax = offset;
-    _setXAccelOffset(offset);
+    // _setXAccelOffset(offset);
 }
 
 void MPU6050Plus::setOffsetAccY(int16_t offset) {
     offset_ay = offset;
-    _setYAccelOffset(offset);
+    // _setYAccelOffset(offset);
 }
 
 void MPU6050Plus::setOffsetAccZ(int16_t offset) {
     offset_az = offset;
-    _setZAccelOffset(offset);
+    // _setZAccelOffset(offset);
 }
 
 void MPU6050Plus::showVals(float data[]) {

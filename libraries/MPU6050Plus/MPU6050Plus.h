@@ -208,11 +208,11 @@ public:
     const float AX_LP_CUTOFF_FREQ =  2.0;          // 0.3;
     const float AY_LP_CUTOFF_FREQ =  2.0;          // 0.3;
     const float AZ_LP_CUTOFF_FREQ =  5.0;
-    const float GX_LP_CUTOFF_FREQ = 50.0;        // 2.0;          // 0.5;
-    const float GY_LP_CUTOFF_FREQ = 50.0;        // 1.0;          // 0.1;
+    const float GX_LP_CUTOFF_FREQ = 10.0;        // 2.0;          // 0.5;
+    const float GY_LP_CUTOFF_FREQ = 10.0;        // 1.0;          // 0.1;
     // const float GY_LP_CUTOFF_FREQ = 5.0;
     // const float GY_LP_CUTOFF_FREQ = 50.0;
-    const float GZ_LP_CUTOFF_FREQ = 15.0;
+    const float GZ_LP_CUTOFF_FREQ = 10.0;
 
     MPU6050Plus();
     MPU6050Plus(uint8_t devAddr_, TwoWire *wireObj_, float sampleT = 0.01);

@@ -14,6 +14,21 @@
 #define BUTTON_PIN D2
 #define MPU_ADDR (0x68)
 
+// MPU6050 Registers
+#define MPU6050_ADDR   0x68
+#define ACCEL_XOUT_H   0x3B
+#define GYRO_XOUT_H    0x43
+
+// Calibration Offsets
+long accX_offset = 0, accY_offset = 0, accZ_offset = 0;
+long long gyroX_offset = 0, gyroY_offset = 0, gyroZ_offset = 0;
+
+// Scales
+float accScale = 16384.0;   // For ±2g
+float gyroScale = 131.0;    // For ±250 °/s
+
+const int N_SAMPLES = 1000;
+
 // make an instance of the library:
 // ArduinoLEDMatrix matrix;
 
@@ -63,7 +78,7 @@ float euler_to_quaternion(float *q_, float yaw, float pitch, float roll) {
   q_[2] = qy;
   q_[3] = qz;
 }
-  
+
 
 void setup() {
   Serial.begin(9600);
@@ -98,7 +113,7 @@ void setup() {
   if (retryCount >= maxRetries) {
     Serial.println("FATAL: IMU initialization failed after max retries!");
     while (1) {
-      digitalWrite(LED_BUILTIN, HIGH);
+      digitalWrite(LED_BUILTIN, HIGH);  
       delay(100);
       digitalWrite(LED_BUILTIN, LOW);
       delay(100);
@@ -113,30 +128,43 @@ void setup() {
   /* Print Gyro and Accel configs */
 
   /* Perform calibration */
-  // imu.calibrateIMU();
+  imu.resetCalibration();
+  imu.calibrateIMU(1000);
   // imu.calcOffsets();
+
   // mpu.CalibrateAccel(20);
   // mpu.CalibrateGyro(20);
+
+  // calibrateAccelerometer();
+  // calibrateGyroscope();
+
     // imu.setOffsetAccX(-981);
     // imu.setOffsetAccY(-307);
     // imu.setOffsetAccZ(1209);
     // imu.setOffsetGyroX(-4);
     // imu.setOffsetGyroY(-36);
     // imu.setOffsetGyroZ(-36);
-  imu.resetCalibration();
+  
 
-  imu.setOffsetAccX(-997);
-  imu.setOffsetAccY(-305);
-  imu.setOffsetAccZ(1221);
-  imu.setOffsetGyroX(-1);
-  imu.setOffsetGyroY(-33);
-  imu.setOffsetGyroZ(-39);
+  // imu.setOffsetAccX(-997);
+  // imu.setOffsetAccY(-305);
+  // imu.setOffsetAccZ(1221);
+  // imu.setOffsetGyroX(-1);
+  // imu.setOffsetGyroY(-33);
+  // imu.setOffsetGyroZ(-39);
+
+  // imu.setOffsetAccX(accX_offset);
+  // imu.setOffsetAccY(accY_offset);
+  // imu.setOffsetAccZ(accZ_offset);
+  // imu.setOffsetGyroX(gyroX_offset);
+  // imu.setOffsetGyroY(gyroY_offset);
+  // imu.setOffsetGyroZ(gyroZ_offset);
 
 
   imu.setCalibrated(true);
 
   // imu.invertY();
-  imu.invertZ();
+  // imu.invertZ();
 
   imu.printInvertedAxes();
 
@@ -200,8 +228,8 @@ void loop() {
     // movingAvg.filter(rawAngle, output);
     // Serial.print(output);
 
-    Serial.print(",Z:");
-    Serial.print(imu.getAngleZ());
+    // Serial.print(",Z:");
+    // Serial.print(imu.getAngleZ());
     Serial.println();
 
     // imu.printInvertedAxes();
@@ -228,6 +256,66 @@ void loop() {
   // }
 }
 
-void doThing() {
-  // pass
+
+// ---------------- Calibration Functions ---------------- //
+
+void calibrateAccelerometer() {
+  long sumX = 0, sumY = 0, sumZ = 0;
+
+  Serial.println("Calibrating Accelerometer... Do not move!");
+
+  for (int i = 0; i < N_SAMPLES; i++) {
+    Wire1.beginTransmission(MPU6050_ADDR);
+    Wire1.write(ACCEL_XOUT_H);
+    Wire1.endTransmission(false);
+    Wire1.requestFrom(MPU6050_ADDR, 6, true);
+
+    sumX += (Wire1.read() << 8) | Wire1.read();
+    sumY += (Wire1.read() << 8) | Wire1.read();
+    sumZ += (Wire1.read() << 8) | Wire1.read();
+
+    delay(5);
+  }
+
+  accX_offset = sumX / N_SAMPLES;
+  accY_offset = sumY / N_SAMPLES;
+  accZ_offset = (sumZ / N_SAMPLES) - 16384; // 1g adjustment
+
+  Serial.println("Accelerometer Calibration Done.");
+}
+
+void calibrateGyroscope() {
+  long long sumX = 0, sumY = 0, sumZ = 0;
+  long tempX = 0, tempY = 0;
+
+  Serial.println("Calibrating Gyroscope... Do not move!");
+
+  for (int i = 0; i < N_SAMPLES; i++) {
+    Wire1.beginTransmission(MPU6050_ADDR);
+    Wire1.write(GYRO_XOUT_H);
+    Wire1.endTransmission(false);
+    Wire1.requestFrom(MPU6050_ADDR, 6, true);
+
+    tempX = (Wire1.read() << 8) | Wire1.read();
+    Serial.print("gyrX: "); Serial.println(tempX);
+    sumX += tempX;
+    tempY = (Wire1.read() << 8) | Wire1.read();
+    Serial.print("gyrY: "); Serial.println(tempY);
+    sumY += tempY;
+    sumZ += (Wire1.read() << 8) | Wire1.read();
+
+    delay(5);
+  }
+
+  gyroX_offset = sumX / N_SAMPLES;
+  gyroY_offset = sumY / N_SAMPLES;
+  gyroZ_offset = sumZ / N_SAMPLES;
+
+  Serial.print("Gyro offsets:\n");
+  Serial.print(gyroX_offset); Serial.print(", ");
+  Serial.print(gyroY_offset); Serial.print(", ");
+  Serial.print(gyroZ_offset); Serial.print(", ");
+
+  Serial.println("Gyroscope Calibration Done.");
+  
 }
