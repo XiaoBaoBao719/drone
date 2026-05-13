@@ -8,6 +8,8 @@
 using namespace std;
 using namespace BLA;
 
+constexpr float PI = 3.14159265358979323;
+
 /* Hard-iron calibration offsets */
 
 BLA::Matrix<3> hard_iron = { 0.0,   0.0,    0.0 };
@@ -82,12 +84,12 @@ BLA::Matrix<3, 1> computeHardIronOffsets(float mag_data_raw[MAX_SAMPLES][3], int
 /**
  * mag_data_raw is a 3 x num_samples matrix of magnetometer data with hard-iron offsets removed
  */
-void computeSoftIronOffsets(float mag_data_raw[MAX_SAMPLES][3], int num_samples) {
+void computeSoftIronOffsets2x2(float mag_data_raw[MAX_SAMPLES][3], int num_samples) {
 
   BLA::Matrix<3,3> cov_sums;
   cov_sums.Fill(0);
 
-  std::vector<BLA::Matrix<3, 3> > cov_data_sets;
+  // std::vector<BLA::Matrix<3, 3> > cov_data_sets;
 
   // Compute covariance matrix of magnetometer data
   // Compute eigenvalues and eigenvectors of covariance matrix
@@ -149,6 +151,93 @@ void computeSoftIronOffsets(float mag_data_raw[MAX_SAMPLES][3], int num_samples)
 
   // Use the derived eigenvalues to calculate the ellipsoid skew
   
+}
+
+void computeSoftIronOffsets3x3(float mag_data_raw[MAX_SAMPLES][3], int num_samples) {
+  // Compute covariance matrix of magnetometer data
+  // Compute eigenvalues and eigenvectors of covariance matrix
+  // Compute soft-iron correction matrix from eigenvalues and eigenvectors
+  BLA::Matrix<3,3> covariance { 0.0, 0.0, 0.0,
+                                0.0, 0.0, 0.0,
+                                0.0, 0.0, 0.0 };
+
+  // Create magnetometer data matrix with hard-iron offsets removed
+  // std::vector<BLA::Matrix<3, 1> > mag_data_offsets_removed; // Vector of magnetometer data with hard-iron offsets removed for each sample
+  BLA::Matrix<MAX_SAMPLES, 3, BLA::Matrix <3, 1>> mag_data_offsets_removed;
+
+  for (int i = 0; i < num_samples; i++) {
+    BLA::Matrix<3, 1> offsets_removed;
+    offsets_removed(0) = mag_data_raw[i][0] - hard_iron(0);
+    offsets_removed(1) = mag_data_raw[i][1] - hard_iron(1);
+    offsets_removed(2) = mag_data_raw[i][2] - hard_iron(2);
+    // mag_data_offsets_removed.push_back(offsets_removed);
+    mag_data_offsets_removed(i) = offsets_removed;
+  }
+
+  // Traverse each data point and sum the covariance matrices per data point 
+  // to get the covariance matrix of the whole magnetometer data
+  for (int i = 0; i < num_samples; i++) {
+    BLA::Matrix<3, 1> offsets_removed = mag_data_offsets_removed(i);
+    BLA::Matrix<1, 3> offsets_removed_T = ~offsets_removed;  // calculate the transpose
+    BLA::Matrix<3, 3> cov = offsets_removed * offsets_removed_T;  // calculate the covariance matrix
+
+    // cov_data_sets.push_back(cov);
+    covariance(0, 0) += cov(0, 0);
+    covariance(0, 1) += cov(0, 1);
+    covariance(0, 2) += cov(0, 2);
+    covariance(1, 0) += cov(1, 0);
+    covariance(1, 1) += cov(1, 1);
+    covariance(1, 2) += cov(1, 2);
+    covariance(2, 0) += cov(2, 0);
+    covariance(2, 1) += cov(2, 1);
+    covariance(2, 2) += cov(2, 2);
+  }
+
+  /**
+   * Now perform eigen decomposition on an assumed 3x3 Hermitian matrix
+   * to derive the eigenvalues and eigenvectors of the covariance matrix of the magnetometer data 
+   */ 
+
+  // Setup some letters for the 3x3 hermitian matrix defined by:
+  /**
+   * | a d f |
+   * | d b e |
+   * | f e c |
+   * where a, b, c are real-valued and d, e, f are complex-valued
+   */
+  float a, b, c, d, e, f;
+  a = covariance(0, 0);
+  b = covariance(1, 1);
+  c = covariance(2, 2);
+  d = covariance(0, 1); 
+  e = covariance(1, 2);
+  f = covariance(0, 2);
+
+  // closed-form solution for x1 and x2 
+  float x1 = a*a + b*b + c*c - a*b - a*c - b*c + 3.0 * (abs(d*d) + abs(f*f) + abs(e*e));
+  float x2 = -(2.0*a - b - c) * (2.0*b - a - c) * (2.0*c - a - b) +
+              9.0*( (2.0*c - a - b)*abs(d*d) + (2.0*b - a - c)*abs(f*f) + (2.0*a - b - c)*abs(e*e) ) -
+              54.0*(d*e*f);
+  
+  float phi = 0.0;   // ϕ 
+  if (x2 > 0) {
+    phi = atan( sqrt(4.0*x1*x1*x1 - x2*x2) / x2 );
+  } else if (x2 < 0) {
+    phi = atan( sqrt(4.0*x1*x1*x1 - x2*x2) / x2 ) + PI;
+  } else if (x2 == 0) {
+    phi = PI / 2.0;
+  }
+
+  // eigenvalues then are
+  float lambda_1 = (a + b + c - 2.0 * sqrt(x1) * cos( phi / 3.0 )) / 3.0;
+  float lambda_2 = (a + b + c + 2.0 * sqrt(x1) * cos( (phi - PI) / 3.0 )) / 3.0;
+  float lambda_3 = (a + b + c + 2.0 * sqrt(x1) * cos( (phi + PI) / 3.0 )) / 3.0;
+
+  /** 
+   * With those three eigenvalues, we can determine the three 3x1 eigenvectors where s1 = 1
+   */
+
+   
 }
 
 
