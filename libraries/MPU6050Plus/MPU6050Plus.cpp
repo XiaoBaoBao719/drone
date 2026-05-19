@@ -345,7 +345,7 @@ void MPU6050Plus::getMeasurementAvgs(float data[], size_t size, uint16_t bufferL
             buff_gz = buff_gz + rawGyroZ;
         }
         measCount++;
-        // delay(2);
+        delay(1);
     }
     /* data frame format = { accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z }*/
     data[0] = buff_ax / bufferLen;
@@ -423,12 +423,12 @@ void MPU6050Plus::calibrate_(float data[], size_t size)
         Serial.println();
 
         Serial.println("Raw sensor values:");
-        Serial.print(rawAccX); Serial.print("\n");
-        Serial.print(rawAccY); Serial.print("\n");
-        Serial.print(rawAccZ); Serial.print("\n");
-        Serial.print(rawGyroX); Serial.print("\n");
-        Serial.print(rawGyroY); Serial.print("\n");
-        Serial.print(rawGyroZ); Serial.print("\n");
+        Serial.print(rawAccX); Serial.print(" ");
+        Serial.print(rawAccY); Serial.print(" ");
+        Serial.print(rawAccZ); Serial.print(" ");
+        Serial.print(rawGyroX); Serial.print(" ");
+        Serial.print(rawGyroY); Serial.print(" ");
+        Serial.print(rawGyroZ); Serial.print(" ");
         Serial.println();
 
         numSensorsReady = 0;

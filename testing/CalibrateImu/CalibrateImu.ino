@@ -22,6 +22,13 @@ volatile int counts = 0;
 unsigned long interval = 10;  // 10 ms update rate
 unsigned long prevMillis = 0;
 unsigned long currMillis = 0;
+
+unsigned long currReadMillis = 0.0;
+unsigned long prevReadMillis = 0.0;
+
+unsigned long imu_interval_ms = 1;
+unsigned long read_interval_ms = 10;
+
 uint32_t print_ts;
 uint32_t loopTimer;
 
@@ -30,6 +37,8 @@ uint32_t loopTimer;
 // MPU6050 mpu(0x68, &Wire1);
 MPU6050Plus imu;
 EulerRPY rpy;
+
+float q_[4];
 
 // const float IMU_SAMPLE_FREQ_MS = 1000;  // millisecs
 float IMU_SAMPLE_FREQ = 0.05;    // time interval between imu points (secs)
@@ -128,6 +137,7 @@ void setup() {
   // imu.calcOffsets();
   // mpu.CalibrateAccel(20);
   // mpu.CalibrateGyro(20);
+  imu.setCalibrated(true);
 
   // imu.invertZ();
 
@@ -144,9 +154,48 @@ void setup() {
   delay(3000);
 }
 
-float q_[4];
-
 void loop() {
 
+  currMillis = millis();
+  if (currMillis - prevMillis >= imu_interval_ms)
+  {
+    imu.updateRawMeasurements();
+    imu.complementaryFilter();
+    prevMillis = currMillis;
+  }
+
+  currReadMillis = millis();
+  if (currReadMillis - prevReadMillis > read_interval_ms)
+  {
+    Serial.print("X:");
+    Serial.print(imu.getAngleX());
+    
+    Serial.print(",Y:");
+    Serial.print(imu.getAngleY());
+
+    /* Experimental moving avg filtering */
+    // float rawAngle = imu.getAngleY();
+    // float output;
+    // movingAvg.filter(rawAngle, output);
+    // Serial.print(output);
+
+    // Serial.print(",Z:");
+    // Serial.print(imu.getAngleZ());
+
+    // Serial.print(",GX:");
+    // Serial.print(imu.getGyroX());
+    // Serial.print(",GY:");
+    // Serial.print(imu.getGyroY());
+    // Serial.print(",GZ:");
+    // Serial.print(imu.getGyroZ());
+
+    Serial.print(",upper_limit:");
+    Serial.print(180.0);
+    Serial.print(",lower_limit:");
+    Serial.print(-180.0);
+
+    Serial.println();
+    prevReadMillis = currReadMillis;
+  }
  
 }

@@ -28,7 +28,7 @@
 #define DEBUG_MODE      (false)
 #define DEBUG_ANGLE     (false)
 #define DEBUG_GYRO      (false)
-#define DEBUG_PID_ANGLE (true)
+#define DEBUG_PID_ANGLE (false)
 #define DEBUG_PID_ANG_RATE (false)
 
 #define DEBUG_RC_RAW    (false)
@@ -36,7 +36,7 @@
 
 #define DEBUG_MOTOR     (false)
 
-#define DISABLE_MOTORS  (true)
+#define DISABLE_MOTORS  (false)
 
 const int DEBUG_UPDATE_FREQ_MS = 1000; // millisecs
 unsigned long prevMillis = 0;
@@ -89,9 +89,9 @@ float ypr[3];         // [yaw, pitch, roll] Angle conversion w/ gravity vector
 #define MAX_THROTTLE (ESC_SPEED_MAX)
 #define MOTOR_CONSTANT (1.05) // (7)
 // Cheap COTS motors have variable performance and are further tuned here:
-#define MOTOR_1_CONST (1.05)//(0.98)
-#define MOTOR_2_CONST (1.02)//(0.95)
-#define MOTOR_3_CONST (0.915)
+#define MOTOR_1_CONST (1.0)//(0.98)
+#define MOTOR_2_CONST (1.0)//(0.95)
+#define MOTOR_3_CONST (1.0)
 #define MOTOR_4_CONST (1.0)
 // TODO: characterize individual motor constants via thrust test stand
 
@@ -165,23 +165,23 @@ static float pidRollAngle;
 static float pidPitchAngle;
 static float pidYawAngle;
 
-MovingAvg<6> mvAvgPidRollAngle;
-MovingAvg<6> mvAvgPidPitchAngle;
-MovingAvg<6> mvAvgPidYawAngle;
+MovingAvg<4> mvAvgPidRollAngle;
+MovingAvg<4> mvAvgPidPitchAngle;
+MovingAvg<4> mvAvgPidYawAngle;
 
 /* Angle Mode Controller PID Gains */
 /* Converts desired attitude angles to rate setpoints (cascaded control) */
-static constexpr float ANGLE_ROLL_KP   = 3.80f;   // Attitude to rate conversion (±45° -> ~±190 deg/s)
-static constexpr float ANGLE_PITCH_KP  = 3.80f;   // Symmetric with roll
-static constexpr float ANGLE_YAW_KP    = 1.5f;   // Lower for conservative yaw control
+static constexpr float ANGLE_ROLL_KP   = 5.0f;   // Attitude to rate conversion (±45° -> ~±190 deg/s)
+static constexpr float ANGLE_PITCH_KP  = 5.0f;   // Symmetric with roll
+static constexpr float ANGLE_YAW_KP    = 0.5f;   // Lower for conservative yaw control
 
-static constexpr float ANGLE_ROLL_KI   = 0.7f; // Corrects steady-state angle bias
-static constexpr float ANGLE_PITCH_KI  = 0.7f;
-static constexpr float ANGLE_YAW_KI    = 0.5f; // Very small (gyro drift sensitivity)
+static constexpr float ANGLE_ROLL_KI   = 0.0f; // Corrects steady-state angle bias
+static constexpr float ANGLE_PITCH_KI  = 0.0f;
+static constexpr float ANGLE_YAW_KI    = 0.0f; // Very small (gyro drift sensitivity)
 
-static constexpr float ANGLE_ROLL_KD   = 0.01f;  // Damping on attitude rate
-static constexpr float ANGLE_PITCH_KD  = 0.01f;
-static constexpr float ANGLE_YAW_KD    = 0.015f;  // Minimal damping for yaw
+static constexpr float ANGLE_ROLL_KD   = 0.00f;  // Damping on attitude rate
+static constexpr float ANGLE_PITCH_KD  = 0.00f;
+static constexpr float ANGLE_YAW_KD    = 0.00f;  // Minimal damping for yaw
 
 static constexpr float ANGLE_ROLL_I_LIMIT   = 50.0f;   // Conservative vs rate loop
 static constexpr float ANGLE_PITCH_I_LIMIT  = 50.0f;
@@ -204,17 +204,17 @@ MovingAvg<4> mvAvgPidYawRate;
 
 /* Rate Mode Controller PID Gains */
 /* Gyroscope direct feedback (inner loop) - 1000 Hz control */
-static constexpr float ROLL_KP    = 1.0f;   // +12.5% - tighter response for 1kHz loop & 250g mass
-static constexpr float PITCH_KP   = 1.0f;   // Symmetric with roll
+static constexpr float ROLL_KP    = 5.0f;   // +12.5% - tighter response for 1kHz loop & 250g mass
+static constexpr float PITCH_KP   = 5.0f;   // Symmetric with roll
 static constexpr float YAW_KP     = 0.3f;   // +10% - faster yaw response
 
 static constexpr float ROLL_KI    = 0.0f;  // +50% - compensates motor dragd & ESC non-linearity
 static constexpr float PITCH_KI   = 0.0f;
 static constexpr float YAW_KI     = 0.0f;  // +100% - better steady-state
 
-static constexpr float ROLL_KD    = 0.01f;  // +20% - enhanced damping for 2-blade props
-static constexpr float PITCH_KD   = 0.01f;
-static constexpr float YAW_KD     = 0.015f;  // +100% - increased damping
+static constexpr float ROLL_KD    = 0.0f;  // +20% - enhanced damping for 2-blade props
+static constexpr float PITCH_KD   = 0.0f;
+static constexpr float YAW_KD     = 0.00f;  // +100% - increased damping
 
 static constexpr float ROLL_I_LIMIT   = 100.0f;  // Integral saturation
 static constexpr float PITCH_I_LIMIT  = 100.0f;
@@ -309,6 +309,10 @@ static MotorOutputs motors = {{ static_cast<float>(ESC_SPEED_MIN),
  * - X-axis: North (forward/backward)
  * - Y-axis: East (right/left)
  * - Z-axis: Down (upward thrust)
+ * 
+ *      ^ X
+ *      |
+ *   Z (X)--> Y
  *
  * Quadcopter motor layout (X configuration):
  * - M1: Front-Right (+X, +Y, CCW)
@@ -627,6 +631,11 @@ if (cur_time - prev_time > 10) {
 
 void updateControllers() {
 
+  /**
+   * TEMPORARY: For initial testing of angle mode controller, we will set the
+   * desired angle setpoints as zero. This allows us to validate the inner loop PID controllers and motor mixing
+   * gives us a stable hover.
+   */
   rcRoll = 0.0;
   rcPitch = 0.0;
   rcYaw = 0.0;
@@ -643,9 +652,9 @@ void updateControllers() {
                           CONTROL_LOOP_TIME_SEC, ANGLE_YAW_I_LIMIT, ANGLE_PID_LIMIT,
                           yawAnglePID);
 
-  pidRollAngle  = mvAvgPidRollAngle.filter(pidRollAngle);
-  pidPitchAngle = mvAvgPidPitchAngle.filter(pidPitchAngle);
-  pidYawAngle   = mvAvgPidYawAngle.filter(pidYawAngle);
+  // pidRollAngle  = mvAvgPidRollAngle.filter(pidRollAngle);
+  // pidPitchAngle = mvAvgPidPitchAngle.filter(pidPitchAngle);
+  // pidYawAngle   = mvAvgPidYawAngle.filter(pidYawAngle);
 
   pidRollRate   = pid(pidRollAngle, angleRateX, ROLL_KP, ROLL_KI, ROLL_KD,
                           CONTROL_LOOP_TIME_SEC, ROLL_I_LIMIT, PID_LIMIT, 
@@ -670,10 +679,10 @@ void updateControllers() {
   float cur_time = millis();
   if (cur_time - prev_time > 10) {
   // Serial.print("throttle:");    Serial.print(rcThrottle);
-  Serial.print(",x_angle_error:"); Serial.print(rollAnglePID.prevError);
-  // Serial.print(",pid_angle_x:");  Serial.print(pidRollAngle);
-  // Serial.print(",pid_angle_y:");  Serial.print(pidPitchAngle);
-  // Serial.print(",pid_angle_z:");  Serial.print(pidYawAngle);
+  // Serial.print(",x_angle_error:"); Serial.print(rollAnglePID.prevError);
+  Serial.print(",pid_angle_x:");  Serial.print(pidRollAngle);
+  Serial.print(",pid_angle_y:");  Serial.print(pidPitchAngle);
+  Serial.print(",pid_angle_z:");  Serial.print(pidYawAngle);
   Serial.println();
   
   prev_time = cur_time;
@@ -681,17 +690,17 @@ void updateControllers() {
 #endif
 
 #if DEBUG_PID_ANG_RATE
-float cur_time = millis();
-if (cur_time - prev_time > 10) {
+float cur_time2 = millis();
+if (cur_time2 - prev_time > 10) {
 
-  Serial.print(",pid_x_error:"); Serial.print(rollRatePID.prevError);
-  Serial.print(",pid_x_pidRollAngle:"); Serial.print(pidRollAngle);
+  // Serial.print(",pid_x_error:"); Serial.print(rollRatePID.prevError);
+  // Serial.print(",pid_x_pidRollAngle:"); Serial.print(pidRollAngle);
   Serial.print(",pid_out_x:");  Serial.print(pidRollRate);
   Serial.print(",pid_out_y:");  Serial.print(pidPitchRate);
   Serial.print(",pid_out_z:");  Serial.print(pidYawRate);
   Serial.println();
 
-  prev_time = cur_time;
+  prev_time = cur_time2;
 }
 #endif
   // Serial.println(pidPitchRate);
@@ -880,12 +889,14 @@ void setup() {
   // imu.setOffsetGyroY(-36);
   // imu.setOffsetGyroZ(-36);
   imu.resetCalibration();
-  imu.setOffsetAccX(-997);
-  imu.setOffsetAccY(-305);
-  imu.setOffsetAccZ(1221);
-  imu.setOffsetGyroX(-1);
-  imu.setOffsetGyroY(-33);
-  imu.setOffsetGyroZ(-39);
+  // imu.setOffsetAccX(-997);
+  // imu.setOffsetAccY(-305);
+  // imu.setOffsetAccZ(1221);
+  // imu.setOffsetGyroX(-1);
+  // imu.setOffsetGyroY(-33);
+  // imu.setOffsetGyroZ(-39);
+
+  imu.calibrateIMU(1000); // Calibrate with 1000 samples
 
   imu.setCalibrated(true);
 
@@ -918,9 +929,9 @@ void setup() {
    *  ===========================================================
    */
 
-  mvAvgPidRollAngle  = MovingAvg<6>();
-  mvAvgPidPitchAngle = MovingAvg<6>();
-  mvAvgPidYawAngle   = MovingAvg<6>();
+  mvAvgPidRollAngle  = MovingAvg<4>();
+  mvAvgPidPitchAngle = MovingAvg<4>();
+  mvAvgPidYawAngle   = MovingAvg<4>();
   mvAvgPidRollRate  = MovingAvg<4>();
   mvAvgPidPitchRate = MovingAvg<4>();
   mvAvgPidYawRate   = MovingAvg<4>();
@@ -942,28 +953,28 @@ void loop() {
   timer = millis();
 
   // currRcRecTimer = millis();
-  if ((timer - prevRcRecTimer) > RCREC_FREQ_MS)
+  if ((timer - prevRcRecTimer) >= RCREC_FREQ_MS)
   {
     updateRC();
-    prevRcRecTimer = currRcRecTimer;
+    prevRcRecTimer = timer;
   }
 
 
   /* Update the IMU data at a rate of 500 Hz*/
   // currImuTimer = millis();
-  if ((timer - prevImuTimer) > IMU_SAMPLE_FREQ_MS)
+  if ((timer - prevImuTimer) >= IMU_SAMPLE_FREQ_MS)
   {
     updateSensors();
-    prevImuTimer = currImuTimer; // update prev timer
+    prevImuTimer = timer; // update prev timer
   }
 
 
   /* Update the control loop and motors at a rate of 500 Hz */
   // currControlTimer = millis();
-  if ((timer - prevControlTimer) > CONTROL_LOOP_TIME_MS)
+  if ((timer - prevControlTimer) >= CONTROL_LOOP_TIME_MS)
   {
     updateControllers();
     updateMotors();
-    prevControlTimer = currControlTimer;
+    prevControlTimer = timer;
   } /* End of control loop */
 }
