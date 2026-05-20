@@ -70,6 +70,8 @@ void MPU6050Plus::initialize(uint8_t devAddr_, TwoWire *wireObj_, float sampleT)
     lpFilters[3] = LowPassFilter<2>(GX_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // gyroX
     lpFilters[4] = LowPassFilter<2>(GY_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // gyroY
     lpFilters[5] = LowPassFilter<2>(GZ_LP_CUTOFF_FREQ, FILTER_SAMPLING_FREQ, false); // gyroZ
+
+    resetCalibration();
 }
 
 void MPU6050Plus::configureGyroScale(GYRO_SCALE scale)
@@ -345,7 +347,7 @@ void MPU6050Plus::getMeasurementAvgs(float data[], size_t size, uint16_t bufferL
             buff_gz = buff_gz + rawGyroZ;
         }
         measCount++;
-        delay(1);
+        // delay(1);
     }
     /* data frame format = { accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z }*/
     data[0] = buff_ax / bufferLen;
@@ -380,12 +382,12 @@ void MPU6050Plus::calibrate_(float data[], size_t size)
     // offset_gx = -1 * data[3] / this->getGyroScale();
     // offset_gy = -1 * data[4] / this->getGyroScale();
     // offset_gz = -1 * data[5] / this->getGyroScale();
-    offset_ax = data[0];
-    offset_ay = data[1];
-    offset_az = data[2] - this->getAccScaleFactor();        // subtract out gravity
-    offset_gx = data[3];
-    offset_gy = data[4];
-    offset_gz = data[5];
+    // offset_ax = data[0];
+    // offset_ay = data[1];
+    // offset_az = data[2] - this->getAccScaleFactor();        // subtract out gravity
+    // offset_gx = data[3];
+    // offset_gy = data[4];
+    // offset_gz = data[5];
 
     uint32_t zAccelTolerance = 1;
     uint8_t numSensorsReady = 0;
@@ -403,33 +405,33 @@ void MPU6050Plus::calibrate_(float data[], size_t size)
         // _setYGyroOffset(offset_gy);
         // _setZGyroOffset(offset_gz);
 
-        offset_ax = data[0];
-        offset_ay = data[1];
-        offset_az = data[2] - this->getAccScaleFactor();        // subtract out gravity
-        offset_gx = data[3];
-        offset_gy = data[4];
-        offset_gz = data[5];
+        // offset_ax = data[0];
+        // offset_ay = data[1];
+        // offset_az = data[2] - this->getAccScaleFactor();        // subtract out gravity
+        // offset_gx = data[3];
+        // offset_gy = data[4];
+        // offset_gz = data[5];
 
         // Get the mean values from each sensor
         this->getMeasurementAvgs(data, size);
 
-        Serial.println("Mean sensor values:");
-        Serial.print(data[0]); Serial.print(" ");
-        Serial.print(data[1]); Serial.print(" ");
-        Serial.print(data[2]); Serial.print(" ");
-        Serial.print(data[3]); Serial.print(" ");
-        Serial.print(data[4]); Serial.print(" "); 
-        Serial.print(data[5]); Serial.print(" "); 
-        Serial.println();
+        // Serial.println("Mean sensor values:");
+        // Serial.print(data[0]); Serial.print(" ");
+        // Serial.print(data[1]); Serial.print(" ");
+        // Serial.print(data[2]); Serial.print(" ");
+        // Serial.print(data[3]); Serial.print(" ");
+        // Serial.print(data[4]); Serial.print(" "); 
+        // Serial.print(data[5]); Serial.print(" "); 
+        // Serial.println();
 
-        Serial.println("Raw sensor values:");
-        Serial.print(rawAccX); Serial.print(" ");
-        Serial.print(rawAccY); Serial.print(" ");
-        Serial.print(rawAccZ); Serial.print(" ");
-        Serial.print(rawGyroX); Serial.print(" ");
-        Serial.print(rawGyroY); Serial.print(" ");
-        Serial.print(rawGyroZ); Serial.print(" ");
-        Serial.println();
+        // Serial.println("Raw sensor values:");
+        // Serial.print(rawAccX); Serial.print(" ");
+        // Serial.print(rawAccY); Serial.print(" ");
+        // Serial.print(rawAccZ); Serial.print(" ");
+        // Serial.print(rawGyroX); Serial.print(" ");
+        // Serial.print(rawGyroY); Serial.print(" ");
+        // Serial.print(rawGyroZ); Serial.print(" ");
+        // Serial.println();
 
         numSensorsReady = 0;
 
@@ -437,34 +439,34 @@ void MPU6050Plus::calibrate_(float data[], size_t size)
             // Serial.println("Accel X ready");
             numSensorsReady++;
         }
-        else    offset_ax -= (data[0] / ACCEL_DEADZONE);
+        else    offset_ax += (data[0] / ACCEL_DEADZONE);
 
         if ( abs( data[1] ) <= ACCEL_DEADZONE ) {
             // Serial.println("Accel Y ready");
             numSensorsReady++;
         }
-        else    offset_ay -= (data[1] / ACCEL_DEADZONE);
+        else    offset_ay += (data[1] / ACCEL_DEADZONE);
 
         if ( abs( data[2] - this->getAccScaleFactor() ) <= ACCEL_DEADZONE + zAccelTolerance ) {
             // Serial.println("Accel Z ready");
             numSensorsReady++;
         }
-        else    offset_az -= ( data[2] - this->getAccScaleFactor() ) / ACCEL_DEADZONE;
+        else    offset_az += ( data[2] - this->getAccScaleFactor() ) / ACCEL_DEADZONE;
 
         if ( abs( data[3] ) <= GYRO_DEADZONE) {
             numSensorsReady++;
         }
-        else    offset_gx -= (data[3] / (GYRO_DEADZONE + 1));
+        else    offset_gx += (data[3] / (GYRO_DEADZONE + 1));
     
         if ( abs( data[4] ) <= GYRO_DEADZONE ) {
             numSensorsReady++;
         }
-        else    offset_gy -= (data[4] / (GYRO_DEADZONE + 1));
+        else    offset_gy += (data[4] / (GYRO_DEADZONE + 1));
     
         if ( abs( data[5] ) <= GYRO_DEADZONE) {
             numSensorsReady++;
         }
-        else    offset_gz -= (data[5] / (GYRO_DEADZONE + 1));
+        else    offset_gz += (data[5] / (GYRO_DEADZONE + 1));
 
 
         if (debug_counter % 10 == 0) {
@@ -488,7 +490,6 @@ void MPU6050Plus::calibrate_(float data[], size_t size)
         }
         debug_counter++;
 
-
         if (numSensorsReady == 6)    // there are six total 'sensors' on the IMU
             break;
     }
@@ -504,7 +505,7 @@ bool MPU6050Plus::calibrateIMU(uint16_t bufferLen) {
     float data[elements];
     memset(data, 0, sizeof(data));
     Serial.println("Calibrating IMU...");
-    getMeasurementAvgs(data, elements, bufferLen);
+    // getMeasurementAvgs(data, elements, bufferLen);
     calibrate_(data, elements);
     Serial.println("Calibration complete.");
     return true;
